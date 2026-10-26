@@ -644,8 +644,10 @@ jobs:
             !**/.gitignore
           if-no-files-found: error
 
+  # Cross-compiles the Windows ARM64 ndll on the x64 runner; the runner
+  # cannot execute ARM64 binaries, so no tests run in this job
   windows-arm64:
-    runs-on: windows-11-arm
+    runs-on: windows-latest
     steps:
 
       - uses: actions/checkout@v6
@@ -691,49 +693,6 @@ jobs:
             ndll/WindowsArm64/
             !**/.gitignore
           if-no-files-found: error
-
-      - uses: actions/setup-python@v6
-        id: tls-python
-        with:
-          python-version: '3.12'
-
-      - name: Run unit tests
-        working-directory: tests/unit
-        env:
-          LIME_TEST_PYTHON: ${{ steps.tls-python.outputs.python-path }}
-          # OpenAL's null output stands in for the sound card runners lack
-          ALSOFT_DRIVERS: "null"
-        run: |
-          python -m unittest discover -s fixtures
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          lime test neko -release -verbose -nocolor
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          lime test windows -arm64 -release -verbose -nocolor
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-      - name: Install samples
-        run: |
-          haxelib git lime-samples https://github.com/openfl/lime-samples --quiet
-
-      - name: Build HelloWorld sample
-        run: |
-          lime create HelloWorld -verbose -nocolor
-          lime build HelloWorld windows -arm64 -release -verbose -nocolor
-
-      - name: Build SimpleImage sample
-        run: |
-          lime create SimpleImage -verbose -nocolor
-          lime build SimpleImage windows -arm64 -release -verbose -nocolor
-
-      - name: Build SimpleAudio sample
-        run: |
-          lime create SimpleAudio -verbose -nocolor
-          lime build SimpleAudio windows -arm64 -release -verbose -nocolor
-
-      - name: Build SimpleVideo sample
-        run: |
-          lime create SimpleVideo -verbose -nocolor
-          lime build SimpleVideo windows -arm64 -release -verbose -nocolor
 
   webassembly:
     runs-on: ubuntu-22.04

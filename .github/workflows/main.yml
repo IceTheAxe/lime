@@ -644,6 +644,97 @@ jobs:
             !**/.gitignore
           if-no-files-found: error
 
+  windows-arm64:
+    runs-on: windows-11-arm
+    steps:
+
+      - uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - uses: krdlab/setup-haxe@v2
+        with:
+          haxe-version: ${{ env.HAXE_VERSION }}
+
+      - name: Set HAXEPATH
+        run: |
+          echo "HAXEPATH=$Env:HAXE_STD_PATH\.." >> $Env:GITHUB_ENV
+
+      - name: Install Haxe dependencies
+        run: |
+          haxelib install native-desktop 1.0.1 --quiet
+          curl --output ../hxcpp-4.3.53.zip --location https://github.com/HaxeFoundation/hxcpp/releases/download/v4.3.53/hxcpp-4.3.53.zip
+          haxelib install ../hxcpp-4.3.53.zip --quiet
+          haxelib install format --quiet
+          haxelib install hxp --quiet
+          haxelib install utest --quiet
+
+      - name: Rebuild Lime tools
+        run: |
+          haxelib dev lime ${{ github.workspace }}
+          haxelib run lime rebuild tools -nocolor -verbose -nocffi
+          haxelib run lime setup -alias -y -nocffi
+
+      - name: Rebuild Lime (Windows ARM64)
+        run: |
+          lime rebuild windows -arm64 -release -nocolor -verbose -nocffi
+          lime rebuild windows -arm64 -debug -nocolor -verbose -nocffi
+
+      - name: Copy import libraries
+        run: |
+          Copy-Item project/obj/lib/lime*.lib ndll/WindowsArm64/
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: WindowsArm64-NDLL
+          path: |
+            ndll/WindowsArm64/
+            !**/.gitignore
+          if-no-files-found: error
+
+      - uses: actions/setup-python@v6
+        id: tls-python
+        with:
+          python-version: '3.12'
+
+      - name: Run unit tests
+        working-directory: tests/unit
+        env:
+          LIME_TEST_PYTHON: ${{ steps.tls-python.outputs.python-path }}
+          # OpenAL's null output stands in for the sound card runners lack
+          ALSOFT_DRIVERS: "null"
+        run: |
+          python -m unittest discover -s fixtures
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          lime test neko -release -verbose -nocolor
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          lime test windows -arm64 -release -verbose -nocolor
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Install samples
+        run: |
+          haxelib git lime-samples https://github.com/openfl/lime-samples --quiet
+
+      - name: Build HelloWorld sample
+        run: |
+          lime create HelloWorld -verbose -nocolor
+          lime build HelloWorld windows -arm64 -release -verbose -nocolor
+
+      - name: Build SimpleImage sample
+        run: |
+          lime create SimpleImage -verbose -nocolor
+          lime build SimpleImage windows -arm64 -release -verbose -nocolor
+
+      - name: Build SimpleAudio sample
+        run: |
+          lime create SimpleAudio -verbose -nocolor
+          lime build SimpleAudio windows -arm64 -release -verbose -nocolor
+
+      - name: Build SimpleVideo sample
+        run: |
+          lime create SimpleVideo -verbose -nocolor
+          lime build SimpleVideo windows -arm64 -release -verbose -nocolor
+
   webassembly:
     runs-on: ubuntu-22.04
     steps:
@@ -883,7 +974,7 @@ jobs:
           lime build SimpleVideo ios -release -nosign -verbose -nocolor -eval
 
   package-haxelib:
-    needs: [linux, macos, macos-intel, windows, android, ios]
+    needs: [linux, macos, macos-intel, windows, windows-arm64, android, ios]
     runs-on: ubuntu-22.04
     steps:
 
@@ -962,6 +1053,11 @@ jobs:
         with:
           name: Windows64-NDLL
           path: ndll/Windows64/
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: WindowsArm64-NDLL
+          path: ndll/WindowsArm64/
 
       # - uses: actions/download-artifact@v8
       #   with:
@@ -1390,7 +1486,7 @@ jobs:
 
   notify:
     runs-on: ubuntu-22.04
-    needs: [package-haxelib, docs, android, flash-samples, air-samples, hashlink-samples, hashlinkc-samples, html5-samples, ios, linux, linux-arm64, vulkan-smoke, macos, macos-intel, neko-samples, webassembly, windows]
+    needs: [package-haxelib, docs, android, flash-samples, air-samples, hashlink-samples, hashlinkc-samples, html5-samples, ios, linux, linux-arm64, vulkan-smoke, macos, macos-intel, neko-samples, webassembly, windows, windows-arm64]
     # Reports failures too, which is when it matters most
     if: ${{ always() && github.repository == 'openfl/lime' && github.event_name != 'pull_request' }}
     steps:

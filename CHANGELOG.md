@@ -9,7 +9,7 @@ zzzzzzz Add Windows ARM64 Platform
 - Added an experimental Vulkan renderer for native Windows, Linux, and Android targets.
 - Added `VulkanRenderContext` and Haxe Vulkan bindings for instance, device, swapchain, command, descriptor, memory, and pipeline helpers.
 - Added Vulkan bootstrap logging, error details, MSAA resolve support, mapped memory helpers, and descriptor helpers.
-- Added `<window renderer="vulkan" />`, and the `no-vulkan` define to build without Vulkan. Where Vulkan is not available, the window uses OpenGL.
+- Added the `vulkan` define, which makes Vulkan the default for windows that name no context type, and the `no-vulkan` define to build without Vulkan. Where Vulkan is not available, the window uses OpenGL.
 - Added `<config:android vulkan-required="false" />` to let Vulkan applications install on devices without Vulkan, and `<config:android vulkan-version="..." />`.
 - Added configurable application frame timing with `FrameProfile`, `FrameOptions`, `VSyncMode`, busy-wait, time precision, and uncap controls.
 - Added `AudioInput` and audio input device APIs with native OpenAL, HTML5, and Flash backends.
@@ -49,7 +49,7 @@ zzzzzzz Add Windows ARM64 Platform
 - Added `Menu`, `MenuItem`, `TrayIcon`, and `DockIcon` for native menu bars, context menus, system tray icons, and the macOS Dock, through the new native-desktop dependency.
 - Added the default macOS menu bar to `Application.menu`, which starts as a copy of it whose About, Hide, Services, Quit, and Window items keep working when items are added.
 - Added `LocalServer` and `LocalSocket` for connections between processes of the same user, through the new native-ipc dependency.
-- Added `WebView`, a web page in a window on Windows, Linux, macOS, iOS, Android, AIR and in browsers, through the new StageWebView dependency.
+- Added `WebView`, a web page in a window on Windows, Linux, macOS, iOS, Android, AIR and in browsers, through the new StageWebView dependency. The `no-webview` define leaves the webview engine out of native and Android applications.
 - Added `WebSocket` and `WebSocketServer` for `ws://` and `wss://` clients and servers, through the new wsproto dependency, which CrossByte's WebSocket also runs on. Native targets need Haxe 4 for them.
 - Added `AL.getSourcedvSOFT()` for OpenAL Soft's source latency extension.
 - Added `ALC.getStringList()` to list every audio output and input device.
@@ -116,6 +116,7 @@ zzzzzzz Add Windows ARM64 Platform
 - Fixed OpenAL bindings returning uninitialized values, and `AL.sourceUnqueueBuffers()` returning buffers it didn't unqueue.
 - Fixed OpenAL objects deadlocking the collector when finalized, leaking buffers collected before their sources, and deleting the objects of a replacement device.
 - Fixed exceptions thrown in event listeners losing their original call site.
+- Fixed `Event` skipping a listener, or calling one again, when a listener adds or removes listeners while it runs.
 - Fixed constructing `Bytes` with no arguments on HashLink.
 - Fixed `FileDialog` wildcard filters.
 - Fixed the Windows icon resource not being rebuilt when the icon changes.

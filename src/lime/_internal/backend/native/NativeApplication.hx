@@ -71,6 +71,7 @@ class NativeApplication
 	**/
 	@:noCompletion private static var __allowHighDPI:Bool = false;
 
+	// TODO: Fold these update hooks into one list when a third subsystem needs one
 	/**
 		Reads and writes every WebSocket, once a frame. Set by NativeWebSocket
 		once there is one, so an application without any compiles none of it.
@@ -661,6 +662,7 @@ class NativeApplication
 					#end
 					if (window.context != null)
 					{
+						NativeWindow.rendering = window;
 						window.__backend.render();
 						window.onRender.dispatch(window.context);
 
@@ -668,6 +670,8 @@ class NativeApplication
 						{
 							window.__backend.contextFlip();
 						}
+
+						NativeWindow.rendering = null;
 					}
 
 				case RENDER_CONTEXT_LOST:

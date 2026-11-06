@@ -25,6 +25,8 @@
 #include <X11/Xutil.h>
 #endif
 
+#include <SDL_syswm.h>
+
 
 namespace lime {
 
@@ -448,6 +450,27 @@ namespace lime {
 		transparent = false;
 		useVulkan = (flags & WINDOW_FLAG_VULKAN) != 0;
 
+		if (useVulkan) {
+
+			// Without Vulkan in this build, or a Vulkan loader on this system, the window is made for
+			// OpenGL instead, as no window could be made for Vulkan
+			#ifdef LIME_VULKAN
+			bool available = SDL_Vulkan_LoadLibrary (NULL) == 0;
+			if (available) SDL_Vulkan_UnloadLibrary ();
+			#else
+			bool available = false;
+			#endif
+
+			if (!available) {
+
+				SDL_LogWarn (SDL_LOG_CATEGORY_RENDER, "Vulkan is not available, so the window uses OpenGL");
+				useVulkan = false;
+				flags &= ~WINDOW_FLAG_VULKAN;
+
+			}
+
+		}
+
 		contextWidth = 0;
 		contextHeight = 0;
 
@@ -695,7 +718,21 @@ namespace lime {
 
 			// }
 
+			// Windows share textures, buffers and shaders through the context current as
+			// one is made, which Lime keeps to the main window's
+			bool shareContext = SDL_GL_GetCurrentContext () != NULL;
+			SDL_GL_SetAttribute (SDL_GL_SHARE_WITH_CURRENT_CONTEXT, shareContext ? 1 : 0);
 			context = SDL_GL_CreateContext (sdlWindow);
+
+			if (!context && shareContext) {
+
+				SDL_LogWarn (SDL_LOG_CATEGORY_VIDEO, "The window's OpenGL context could not share with the other windows: %s", SDL_GetError ());
+				SDL_GL_SetAttribute (SDL_GL_SHARE_WITH_CURRENT_CONTEXT, 0);
+				context = SDL_GL_CreateContext (sdlWindow);
+
+			}
+
+			SDL_GL_SetAttribute (SDL_GL_SHARE_WITH_CURRENT_CONTEXT, 0);
 
 			if (context && SDL_GL_MakeCurrent (sdlWindow, context) == 0) {
 
@@ -897,10 +934,12 @@ namespace lime {
 		if (context && !sdlRenderer) {
 
 			SDL_GL_SwapWindow (sdlWindow);
+			SDLApplication::NoteContextFlip ();
 
 		} else if (sdlRenderer) {
 
 			SDL_RenderPresent (sdlRenderer);
+			SDLApplication::NoteContextFlip ();
 
 		}
 
@@ -1728,6 +1767,70 @@ namespace lime {
 		*width = rect->w;
 		*height = rect->h;
 		return true;
+
+	}
+
+
+	int SDLWindow::GetNativeHandle (void** handle, void** display) {
+
+		return GetNativeHandle (sdlWindow, handle, display);
+
+	}
+
+
+	int SDLWindow::GetNativeHandle (SDL_Window* window, void** handle, void** display) {
+
+		*handle = NULL;
+		*display = NULL;
+
+		SDL_SysWMinfo info;
+		SDL_VERSION (&info.version);
+		if (!window || SDL_GetWindowWMInfo (window, &info) != SDL_TRUE) return WINDOW_HANDLE_NONE;
+
+		switch (info.subsystem) {
+
+			#ifdef SDL_VIDEO_DRIVER_WINDOWS
+			case SDL_SYSWM_WINDOWS:
+				*handle = info.info.win.window;
+				return WINDOW_HANDLE_WINDOWS;
+			#endif
+
+			#ifdef SDL_VIDEO_DRIVER_COCOA
+			case SDL_SYSWM_COCOA:
+				*handle = info.info.cocoa.window;
+				return WINDOW_HANDLE_COCOA;
+			#endif
+
+			#ifdef SDL_VIDEO_DRIVER_X11
+			case SDL_SYSWM_X11:
+				*handle = (void*)(uintptr_t)info.info.x11.window;
+				*display = info.info.x11.display;
+				return WINDOW_HANDLE_X11;
+			#endif
+
+			#ifdef SDL_VIDEO_DRIVER_WAYLAND
+			case SDL_SYSWM_WAYLAND:
+				*handle = info.info.wl.surface;
+				*display = info.info.wl.display;
+				return WINDOW_HANDLE_WAYLAND;
+			#endif
+
+			#ifdef SDL_VIDEO_DRIVER_UIKIT
+			case SDL_SYSWM_UIKIT:
+				*handle = info.info.uikit.window;
+				return WINDOW_HANDLE_UIKIT;
+			#endif
+
+			#ifdef SDL_VIDEO_DRIVER_ANDROID
+			case SDL_SYSWM_ANDROID:
+				*handle = info.info.android.window;
+				return WINDOW_HANDLE_ANDROID;
+			#endif
+
+			default:
+				return WINDOW_HANDLE_NONE;
+
+		}
 
 	}
 

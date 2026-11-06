@@ -4,6 +4,7 @@ on: [push, pull_request]
 env:
   HAXE_VERSION: 4.2.5
   HXCPP_COMPILE_CACHE: ${{ github.workspace }}/.hxcpp_cache
+  HXCPP_NONINTERACTIVE: 1
 
 jobs:
 
@@ -32,10 +33,14 @@ jobs:
 
       - name: Install Haxe dependencies
         run: |
-          haxelib install native-desktop 1.0.1 --quiet
-          curl --output ../hxcpp-4.3.53.zip --location https://github.com/HaxeFoundation/hxcpp/releases/download/v4.3.53/hxcpp-4.3.53.zip
+          haxelib install native-desktop 1.1.0 --quiet
+          haxelib install native-ipc 1.0.0 --quiet
+          haxelib install wsproto 1.0.0 --quiet
           haxelib --global update haxelib --quiet
-          haxelib install ../hxcpp-4.3.53.zip --quiet
+          haxelib install StageWebView 1.0.1 --quiet
+          haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
+          haxelib run libhxcpp setup
+          haxe --cwd "$(haxelib libpath libhxcpp)/tools/hxcpp" compile.hxml
           haxelib install format --quiet
           haxelib install hxp --quiet
           haxelib install utest --quiet
@@ -82,6 +87,8 @@ jobs:
 
       - name: Run unit tests
         working-directory: tests/unit
+        # A deadlock hangs the tests rather than failing them
+        timeout-minutes: 30
         env:
           LIME_TEST_PYTHON: ${{ steps.tls-python.outputs.python-path }}
           # OpenAL's null output stands in for the sound card runners lack
@@ -91,6 +98,18 @@ jobs:
           lime test neko -release -verbose -nocolor
           lime test hl -release -verbose -nocolor
           lime test linux -release -verbose -nocolor
+
+      - name: Run WebView tests
+        working-directory: tests/unit
+        # WebKitGTK needs a display, so the tests above do not reach it
+        timeout-minutes: 10
+        env:
+          ALSOFT_DRIVERS: "null"
+        run: |
+          sudo apt-get install -y libwebkit2gtk-4.1-0
+          xvfb-run -a lime test neko -release -verbose -nocolor -DUTEST_PATTERN=WebViewTest
+          xvfb-run -a lime test hl -release -verbose -nocolor -DUTEST_PATTERN=WebViewTest
+          xvfb-run -a lime test linux -release -verbose -nocolor -DUTEST_PATTERN=WebViewTest
 
       - name: Run unit tests past 24.8 days
         working-directory: tests/unit
@@ -165,10 +184,14 @@ jobs:
 
       - name: Install Haxe dependencies
         run: |
-          haxelib install native-desktop 1.0.1 --quiet
-          curl --output ../hxcpp-4.3.53.zip --location https://github.com/HaxeFoundation/hxcpp/releases/download/v4.3.53/hxcpp-4.3.53.zip
+          haxelib install native-desktop 1.1.0 --quiet
+          haxelib install native-ipc 1.0.0 --quiet
+          haxelib install wsproto 1.0.0 --quiet
           haxelib --global update haxelib --quiet
-          haxelib install ../hxcpp-4.3.53.zip --quiet
+          haxelib install StageWebView 1.0.1 --quiet
+          haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
+          haxelib run libhxcpp setup
+          haxe --cwd "$(haxelib libpath libhxcpp)/tools/hxcpp" compile.hxml
           haxelib install format --quiet
           haxelib install hxp --quiet
           haxelib install utest --quiet
@@ -206,6 +229,19 @@ jobs:
           python -m unittest discover -s fixtures
           lime test neko -release -verbose -nocolor
           lime test linux -release -verbose -nocolor
+        # The package waits for this job, so a hang must not hold it for hours
+        timeout-minutes: 60
+
+      - name: Run WebView tests
+        working-directory: tests/unit
+        # WebKitGTK needs a display, so the tests above do not reach it
+        timeout-minutes: 10
+        env:
+          ALSOFT_DRIVERS: "null"
+        run: |
+          sudo apt-get install -y libwebkit2gtk-4.1-0 xvfb
+          xvfb-run -a lime test neko -release -verbose -nocolor -DUTEST_PATTERN=WebViewTest
+          xvfb-run -a lime test linux -release -verbose -nocolor -DUTEST_PATTERN=WebViewTest
 
       - name: Install samples
         run: |
@@ -254,10 +290,14 @@ jobs:
 
       - name: Install Haxe dependencies
         run: |
-          haxelib install native-desktop 1.0.1 --quiet
-          curl --output ../hxcpp-4.3.53.zip --location https://github.com/HaxeFoundation/hxcpp/releases/download/v4.3.53/hxcpp-4.3.53.zip
+          haxelib install native-desktop 1.1.0 --quiet
+          haxelib install native-ipc 1.0.0 --quiet
+          haxelib install wsproto 1.0.0 --quiet
           haxelib --global update haxelib --quiet
-          haxelib install ../hxcpp-4.3.53.zip --quiet
+          haxelib install StageWebView 1.0.1 --quiet
+          haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
+          haxelib run libhxcpp setup
+          haxe --cwd "$(haxelib libpath libhxcpp)/tools/hxcpp" compile.hxml
           haxelib install format --quiet
           haxelib install hxp --quiet
           haxelib install utest --quiet
@@ -279,6 +319,7 @@ jobs:
 
       - name: Run Vulkan smoke test app
         working-directory: tests/vulkan-smoke
+        timeout-minutes: 5
         run: |
           if [ -f /usr/share/vulkan/icd.d/lvp_icd.x86_64.json ]; then
             export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json
@@ -286,7 +327,7 @@ jobs:
           SDL_AUDIODRIVER=dummy xvfb-run -a Export/linux/bin/LimeVulkanSmoke
 
   macos:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
 
       - uses: actions/checkout@v6
@@ -303,9 +344,13 @@ jobs:
 
       - name: Install Haxe dependencies
         run: |
-          haxelib install native-desktop 1.0.1 --quiet
-          curl --output ../hxcpp-4.3.53.zip --location https://github.com/HaxeFoundation/hxcpp/releases/download/v4.3.53/hxcpp-4.3.53.zip
-          haxelib install ../hxcpp-4.3.53.zip --quiet
+          haxelib install native-desktop 1.1.0 --quiet
+          haxelib install native-ipc 1.0.0 --quiet
+          haxelib install StageWebView 1.0.1 --quiet
+          haxelib install wsproto 1.0.0 --quiet
+          haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
+          haxelib run libhxcpp setup
+          haxe --cwd "$(haxelib libpath libhxcpp)/tools/hxcpp" compile.hxml
           haxelib install format --quiet
           haxelib install hxp --quiet
           haxelib install utest --quiet
@@ -333,8 +378,21 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Set trust settings for the HTTPS tests
+        working-directory: tests/unit
+        run: |
+          # Lets the runner change the administrator's trust settings without a password prompt.
+          # macOS 15 refuses this change through security authorizationdb, so it is made in the
+          # authorization database itself, where class 4 is allow
+          sudo sqlite3 /var/db/auth.db "UPDATE rules SET class = 4 WHERE name = 'com.apple.trust-settings.admin'"
+          sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain fixtures/trusted-ca.pem
+          sudo security add-trusted-cert -d -r deny -k /Library/Keychains/System.keychain fixtures/test-ca.pem
+          echo "LIME_TEST_TRUST_SETTINGS=1" >> $GITHUB_ENV
+
       - name: Run unit tests
         working-directory: tests/unit
+        # A deadlock hangs the tests rather than failing them
+        timeout-minutes: 30
         env:
           LIME_TEST_PYTHON: ${{ steps.tls-python.outputs.python-path }}
           # OpenAL's null output stands in for the sound card runners lack
@@ -419,9 +477,13 @@ jobs:
 
       - name: Install Haxe dependencies
         run: |
-          haxelib install native-desktop 1.0.1 --quiet
-          curl --output ../hxcpp-4.3.53.zip --location https://github.com/HaxeFoundation/hxcpp/releases/download/v4.3.53/hxcpp-4.3.53.zip
-          haxelib install ../hxcpp-4.3.53.zip --quiet
+          haxelib install native-desktop 1.1.0 --quiet
+          haxelib install native-ipc 1.0.0 --quiet
+          haxelib install StageWebView 1.0.1 --quiet
+          haxelib install wsproto 1.0.0 --quiet
+          haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
+          haxelib run libhxcpp setup
+          haxe --cwd "$(haxelib libpath libhxcpp)/tools/hxcpp" compile.hxml
           haxelib install format --quiet
           haxelib install hxp --quiet
           haxelib install utest --quiet
@@ -462,6 +524,8 @@ jobs:
 
       - name: Run unit tests
         working-directory: tests/unit
+        # A deadlock hangs the tests rather than failing them
+        timeout-minutes: 30
         env:
           LIME_TEST_PYTHON: ${{ steps.tls-python.outputs.python-path }}
           # OpenAL's null output stands in for the sound card runners lack
@@ -519,9 +583,13 @@ jobs:
 
       - name: Install Haxe dependencies
         run: |
-          haxelib install native-desktop 1.0.1 --quiet
-          curl --output ../hxcpp-4.3.53.zip --location https://github.com/HaxeFoundation/hxcpp/releases/download/v4.3.53/hxcpp-4.3.53.zip
-          haxelib install ../hxcpp-4.3.53.zip --quiet
+          haxelib install native-desktop 1.1.0 --quiet
+          haxelib install native-ipc 1.0.0 --quiet
+          haxelib install StageWebView 1.0.1 --quiet
+          haxelib install wsproto 1.0.0 --quiet
+          haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
+          haxelib run libhxcpp setup
+          haxe --cwd "$(haxelib libpath libhxcpp)/tools/hxcpp" compile.hxml
           haxelib install format --quiet
           haxelib install hxp --quiet
           haxelib install utest --quiet
@@ -575,6 +643,8 @@ jobs:
 
       - name: Run unit tests
         working-directory: tests/unit
+        # A deadlock hangs the tests rather than failing them
+        timeout-minutes: 30
         env:
           LIME_TEST_PYTHON: ${{ steps.tls-python.outputs.python-path }}
           # OpenAL's null output stands in for the sound card runners lack
@@ -593,6 +663,11 @@ jobs:
 
       - name: Check native desktop integration through SDL
         working-directory: tests/native-desktop
+        timeout-minutes: 5
+        run: lime test windows -release -verbose -nocolor
+
+      - name: Check local sockets between processes
+        working-directory: tests/local-socket
         timeout-minutes: 5
         run: lime test windows -release -verbose -nocolor
 
@@ -715,9 +790,13 @@ jobs:
 
       - name: Install Haxe dependencies
         run: |
-          haxelib install native-desktop 1.0.1 --quiet
-          curl --output ../hxcpp-4.3.168.zip --location https://github.com/HaxeFoundation/hxcpp/releases/download/v4.3.168/hxcpp-4.3.168.zip
-          haxelib install ../hxcpp-4.3.168.zip --quiet
+          haxelib install native-desktop 1.1.0 --quiet
+          haxelib install native-ipc 1.0.0 --quiet
+          haxelib install StageWebView 1.0.1 --quiet
+          haxelib install wsproto 1.0.0 --quiet
+          haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
+          haxelib run libhxcpp setup
+          haxe --cwd "$(haxelib libpath libhxcpp)/tools/hxcpp" compile.hxml
           haxelib install format --quiet
           haxelib install hxp --quiet
 
@@ -796,9 +875,13 @@ jobs:
 
       - name: Install Haxe dependencies
         run: |
-          haxelib install native-desktop 1.0.1 --quiet
-          curl --output ../hxcpp-4.3.53.zip --location https://github.com/HaxeFoundation/hxcpp/releases/download/v4.3.53/hxcpp-4.3.53.zip
-          haxelib install ../hxcpp-4.3.53.zip --quiet
+          haxelib install native-desktop 1.1.0 --quiet
+          haxelib install native-ipc 1.0.0 --quiet
+          haxelib install StageWebView 1.0.1 --quiet
+          haxelib install wsproto 1.0.0 --quiet
+          haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
+          haxelib run libhxcpp setup
+          haxe --cwd "$(haxelib libpath libhxcpp)/tools/hxcpp" compile.hxml
           haxelib install format --quiet
           haxelib install hxp --quiet
 
@@ -864,7 +947,7 @@ jobs:
           lime build android -release -verbose -nocolor -eval
 
   ios:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
 
       - uses: actions/checkout@v6
@@ -881,9 +964,13 @@ jobs:
 
       - name: Install Haxe dependencies
         run: |
-          haxelib install native-desktop 1.0.1 --quiet
-          curl --output ../hxcpp-4.3.53.zip --location https://github.com/HaxeFoundation/hxcpp/releases/download/v4.3.53/hxcpp-4.3.53.zip
-          haxelib install ../hxcpp-4.3.53.zip --quiet
+          haxelib install native-desktop 1.1.0 --quiet
+          haxelib install native-ipc 1.0.0 --quiet
+          haxelib install StageWebView 1.0.1 --quiet
+          haxelib install wsproto 1.0.0 --quiet
+          haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
+          haxelib run libhxcpp setup
+          haxe --cwd "$(haxelib libpath libhxcpp)/tools/hxcpp" compile.hxml
           haxelib install format --quiet
           haxelib install hxp --quiet
 
@@ -951,9 +1038,13 @@ jobs:
 
       - name: Install Haxe dependencies
         run: |
-          haxelib install native-desktop 1.0.1 --quiet
-          curl --output ../hxcpp-4.3.53.zip --location https://github.com/HaxeFoundation/hxcpp/releases/download/v4.3.53/hxcpp-4.3.53.zip
-          haxelib install ../hxcpp-4.3.53.zip --quiet
+          haxelib install native-desktop 1.1.0 --quiet
+          haxelib install native-ipc 1.0.0 --quiet
+          haxelib install StageWebView 1.0.1 --quiet
+          haxelib install wsproto 1.0.0 --quiet
+          haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
+          haxelib run libhxcpp setup
+          haxe --cwd "$(haxelib libpath libhxcpp)/tools/hxcpp" compile.hxml
           haxelib install format --quiet
           haxelib install hxp --quiet
           haxelib install svg --quiet
@@ -992,6 +1083,11 @@ jobs:
         with:
           name: Linux64-NDLL
           path: ndll/Linux64/
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: LinuxArm64-NDLL
+          path: ndll/LinuxArm64/
 
       - uses: actions/download-artifact@v8
         with:
@@ -1076,7 +1172,10 @@ jobs:
 
       - name: Install Haxe dependencies
         run: |
-          haxelib install native-desktop 1.0.1 --quiet
+          haxelib install native-desktop 1.1.0 --quiet
+          haxelib install native-ipc 1.0.0 --quiet
+          haxelib install StageWebView 1.0.1 --quiet
+          haxelib install wsproto 1.0.0 --quiet
           haxelib install dox --quiet
           haxelib dev lime ${{ github.workspace }}
 
@@ -1107,7 +1206,10 @@ jobs:
 
       - name: Install Haxe dependencies
         run: |
-          haxelib install native-desktop 1.0.1 --quiet
+          haxelib install native-desktop 1.1.0 --quiet
+          haxelib install native-ipc 1.0.0 --quiet
+          haxelib install StageWebView 1.0.1 --quiet
+          haxelib install wsproto 1.0.0 --quiet
           haxelib install format --quiet
           haxelib install hxp --quiet
           haxelib git lime-samples https://github.com/openfl/lime-samples --quiet
@@ -1163,9 +1265,12 @@ jobs:
 
       - name: Install Haxe dependencies
         run: |
-          haxelib install native-desktop 1.0.1 --quiet
-          curl --output ../hxcpp-4.3.53.zip --location https://github.com/HaxeFoundation/hxcpp/releases/download/v4.3.53/hxcpp-4.3.53.zip
-          haxelib install ../hxcpp-4.3.53.zip --quiet
+          haxelib install native-desktop 1.1.0 --quiet
+          haxelib install native-ipc 1.0.0 --quiet
+          haxelib install StageWebView 1.0.1 --quiet
+          haxelib install wsproto 1.0.0 --quiet
+          haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
+          haxelib run libhxcpp setup
           haxelib install format --quiet
           haxelib install hxp --quiet
           haxelib git lime-samples https://github.com/openfl/lime-samples --quiet
@@ -1200,7 +1305,7 @@ jobs:
     needs: package-haxelib
     strategy:
       matrix:
-        os: [windows-latest, ubuntu-22.04, macos-14]
+        os: [windows-latest, ubuntu-22.04, macos-15]
     runs-on: ${{ matrix.os }}
     steps:
 
@@ -1219,7 +1324,10 @@ jobs:
 
       - name: Install Haxe dependencies
         run: |
-          haxelib install native-desktop 1.0.1 --quiet
+          haxelib install native-desktop 1.1.0 --quiet
+          haxelib install native-ipc 1.0.0 --quiet
+          haxelib install StageWebView 1.0.1 --quiet
+          haxelib install wsproto 1.0.0 --quiet
           haxelib git lime-samples https://github.com/openfl/lime-samples --quiet
 
       - uses: actions/download-artifact@v8
@@ -1256,7 +1364,7 @@ jobs:
     needs: package-haxelib
     strategy:
       matrix:
-        os: [windows-latest, ubuntu-22.04, macos-14]
+        os: [windows-latest, ubuntu-22.04, macos-15]
     runs-on: ${{ matrix.os }}
     steps:
 
@@ -1275,7 +1383,10 @@ jobs:
 
       - name: Install Haxe dependencies
         run: |
-          haxelib install native-desktop 1.0.1 --quiet
+          haxelib install native-desktop 1.1.0 --quiet
+          haxelib install native-ipc 1.0.0 --quiet
+          haxelib install StageWebView 1.0.1 --quiet
+          haxelib install wsproto 1.0.0 --quiet
           haxelib git lime-samples https://github.com/openfl/lime-samples --quiet
 
       - uses: actions/download-artifact@v8
@@ -1328,7 +1439,10 @@ jobs:
 
       - name: Install Haxe dependencies
         run: |
-          haxelib install native-desktop 1.0.1 --quiet
+          haxelib install native-desktop 1.1.0 --quiet
+          haxelib install native-ipc 1.0.0 --quiet
+          haxelib install StageWebView 1.0.1 --quiet
+          haxelib install wsproto 1.0.0 --quiet
           haxelib install genes --quiet
           haxelib git lime-samples https://github.com/openfl/lime-samples --quiet
 
@@ -1391,7 +1505,7 @@ jobs:
     strategy:
       matrix:
         haxe-version: [3.4.7, 4.2.5]
-        os: [windows-latest, ubuntu-22.04, macos-14]
+        os: [windows-latest, ubuntu-22.04, macos-15]
     runs-on: ${{ matrix.os }}
     steps:
 
@@ -1410,7 +1524,10 @@ jobs:
 
       - name: Install Haxe dependencies
         run: |
-          haxelib install native-desktop 1.0.1 --quiet
+          haxelib install native-desktop 1.1.0 --quiet
+          haxelib install native-ipc 1.0.0 --quiet
+          haxelib install StageWebView 1.0.1 --quiet
+          haxelib install wsproto 1.0.0 --quiet
           haxelib git lime-samples https://github.com/openfl/lime-samples --quiet
 
       - uses: actions/download-artifact@v8

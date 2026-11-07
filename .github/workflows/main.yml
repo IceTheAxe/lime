@@ -42,6 +42,7 @@ jobs:
           haxelib install native-desktop 1.1.0 --quiet
           haxelib install native-ipc 1.0.0 --quiet
           haxelib install wsproto 1.0.0 --quiet
+          haxelib install crossbyte 1.0.1 --quiet
           haxelib --global update haxelib --quiet
           haxelib install StageWebView 1.0.1 --quiet
           haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
@@ -51,10 +52,13 @@ jobs:
           haxelib install hxp --quiet
           haxelib install utest --quiet
 
-      - name: Rebuild Lime tools
+      # CrossByte, which serves lime test html5, needs Haxe 4.3 to build the tools
+      - uses: ./.github/actions/rebuild-lime-tools
+        with:
+          haxe-version: ${{ env.HAXE_VERSION }}
+
+      - name: Set up Lime
         run: |
-          haxelib dev lime ${{ github.workspace }}
-          haxelib run lime rebuild tools -nocolor -verbose -nocffi
           haxelib run lime setup -alias -y -nocffi
 
       - name: Rebuild Lime (Linux)
@@ -116,6 +120,16 @@ jobs:
           xvfb-run -a lime test neko -release -verbose -nocolor -DUTEST_PATTERN=WebViewTest
           xvfb-run -a lime test hl -release -verbose -nocolor -DUTEST_PATTERN=WebViewTest
           xvfb-run -a lime test linux -release -verbose -nocolor -DUTEST_PATTERN=WebViewTest
+
+      - name: Run software OpenGL tests
+        working-directory: tests/unit
+        timeout-minutes: 10
+        env:
+          ALSOFT_DRIVERS: "null"
+          # Skips the GPU, as on a machine without one
+          LIME_SOFTWARE_GL: "1"
+        run: |
+          xvfb-run -a lime test linux -release -verbose -nocolor -Dsoftware-gl -DUTEST_PATTERN=OpenGLTest
 
       - name: Run unit tests past 24.8 days
         working-directory: tests/unit
@@ -193,6 +207,7 @@ jobs:
           haxelib install native-desktop 1.1.0 --quiet
           haxelib install native-ipc 1.0.0 --quiet
           haxelib install wsproto 1.0.0 --quiet
+          haxelib install crossbyte 1.0.1 --quiet
           haxelib --global update haxelib --quiet
           haxelib install StageWebView 1.0.1 --quiet
           haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
@@ -299,6 +314,7 @@ jobs:
           haxelib install native-desktop 1.1.0 --quiet
           haxelib install native-ipc 1.0.0 --quiet
           haxelib install wsproto 1.0.0 --quiet
+          haxelib install crossbyte 1.0.1 --quiet
           haxelib --global update haxelib --quiet
           haxelib install StageWebView 1.0.1 --quiet
           haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
@@ -308,10 +324,13 @@ jobs:
           haxelib install hxp --quiet
           haxelib install utest --quiet
 
-      - name: Rebuild Lime tools
+      # CrossByte, which serves lime test html5, needs Haxe 4.3 to build the tools
+      - uses: ./.github/actions/rebuild-lime-tools
+        with:
+          haxe-version: ${{ env.HAXE_VERSION }}
+
+      - name: Set up Lime
         run: |
-          haxelib dev lime ${{ github.workspace }}
-          haxelib run lime rebuild tools -nocolor -verbose -nocffi
           haxelib run lime setup -alias -y -nocffi
 
       - name: Rebuild Lime (Linux default Vulkan)
@@ -354,6 +373,7 @@ jobs:
           haxelib install native-ipc 1.0.0 --quiet
           haxelib install StageWebView 1.0.1 --quiet
           haxelib install wsproto 1.0.0 --quiet
+          haxelib install crossbyte 1.0.1 --quiet
           haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
           haxelib run libhxcpp setup
           haxe --cwd "$(haxelib libpath libhxcpp)/tools/hxcpp" compile.hxml
@@ -407,6 +427,16 @@ jobs:
           python -m unittest discover -s fixtures
           lime test neko -release -verbose -nocolor
           lime test mac -arm64 -release -verbose -nocolor
+
+      - name: Run software OpenGL tests
+        working-directory: tests/unit
+        timeout-minutes: 10
+        env:
+          ALSOFT_DRIVERS: "null"
+          # Skips the GPU, as on a machine without one
+          LIME_SOFTWARE_GL: "1"
+        run: |
+          lime test mac -arm64 -release -verbose -nocolor -Dsoftware-gl -DUTEST_PATTERN=OpenGLTest
 
       - name: Run video smoke test
         working-directory: tests/video-smoke
@@ -487,6 +517,7 @@ jobs:
           haxelib install native-ipc 1.0.0 --quiet
           haxelib install StageWebView 1.0.1 --quiet
           haxelib install wsproto 1.0.0 --quiet
+          haxelib install crossbyte 1.0.1 --quiet
           haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
           haxelib run libhxcpp setup
           haxe --cwd "$(haxelib libpath libhxcpp)/tools/hxcpp" compile.hxml
@@ -494,10 +525,13 @@ jobs:
           haxelib install hxp --quiet
           haxelib install utest --quiet
 
-      - name: Rebuild Lime tools
+      # CrossByte, which serves lime test html5, needs Haxe 4.3 to build the tools
+      - uses: ./.github/actions/rebuild-lime-tools
+        with:
+          haxe-version: ${{ env.HAXE_VERSION }}
+
+      - name: Set up Lime
         run: |
-          haxelib dev lime ${{ github.workspace }}
-          haxelib run lime rebuild tools -nocolor -verbose -nocffi
           haxelib run lime setup -alias -y -nocffi
 
       - name: Rebuild Lime (macOS)
@@ -593,6 +627,8 @@ jobs:
           haxelib install native-ipc 1.0.0 --quiet
           haxelib install StageWebView 1.0.1 --quiet
           haxelib install wsproto 1.0.0 --quiet
+          haxelib install crossbyte 1.0.1 --quiet
+          haxelib install lime-mesa 1.0.0 --quiet
           haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
           haxelib run libhxcpp setup
           haxe --cwd "$(haxelib libpath libhxcpp)/tools/hxcpp" compile.hxml
@@ -600,10 +636,13 @@ jobs:
           haxelib install hxp --quiet
           haxelib install utest --quiet
 
-      - name: Rebuild Lime tools
+      # CrossByte, which serves lime test html5, needs Haxe 4.3 to build the tools
+      - uses: ./.github/actions/rebuild-lime-tools
+        with:
+          haxe-version: ${{ env.HAXE_VERSION }}
+
+      - name: Set up Lime
         run: |
-          haxelib dev lime ${{ github.workspace }}
-          haxelib run lime rebuild tools -nocolor -verbose -nocffi
           haxelib run lime setup -alias -y -nocffi
           haxelib run lime config AIR_SDK ${{ env.AIR_HOME }} -eval
 
@@ -666,6 +705,16 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           lime test windows -release -verbose -nocolor
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run software OpenGL tests
+        working-directory: tests/unit
+        timeout-minutes: 10
+        env:
+          ALSOFT_DRIVERS: "null"
+          # Skips the GPU, as on a machine without one
+          LIME_SOFTWARE_GL: "1"
+        run: |
+          lime test windows -release -verbose -nocolor -Dsoftware-gl -DUTEST_PATTERN=OpenGLTest
 
       - name: Check native desktop integration through SDL
         working-directory: tests/native-desktop
@@ -796,6 +845,9 @@ jobs:
 
       - name: Install Emscripten NDK
         uses: emscripten-core/setup-emsdk@v16
+        with:
+          # Emscripten 7.0.0 hangs compiling Lime
+          version: 6.0.13
 
       - uses: krdlab/setup-haxe@v2
         with:
@@ -1059,6 +1111,7 @@ jobs:
           haxelib install native-ipc 1.0.0 --quiet
           haxelib install StageWebView 1.0.1 --quiet
           haxelib install wsproto 1.0.0 --quiet
+          haxelib install crossbyte 1.0.1 --quiet
           haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
           haxelib run libhxcpp setup
           haxe --cwd "$(haxelib libpath libhxcpp)/tools/hxcpp" compile.hxml
@@ -1067,10 +1120,13 @@ jobs:
           haxelib install svg --quiet
           haxelib install openfl --quiet
 
-      - name: Rebuild Lime tools
+      # CrossByte, which serves lime test html5, needs Haxe 4.3 to build the tools
+      - uses: ./.github/actions/rebuild-lime-tools
+        with:
+          haxe-version: ${{ env.HAXE_VERSION }}
+
+      - name: Set up Lime
         run: |
-          haxelib dev lime ${{ github.workspace }}
-          haxelib run lime rebuild tools -nocolor -verbose -nocffi
           haxelib run lime setup -alias -y -nocffi
           cp project/lib/hashlink/other/osx/entitlements.xml templates/bin/hl/entitlements.xml
           mkdir templates/bin/hl/include

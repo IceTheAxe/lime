@@ -1,5 +1,11 @@
 name: CI
-on: [push, pull_request]
+on:
+  push:
+    # `haxelib` is a generated library branch (see publish-haxelib-branch).
+    # Pushing to it must not retrigger the build, or CI would loop forever.
+    branches-ignore:
+      - haxelib
+  pull_request:
 
 env:
   HAXE_VERSION: 4.2.5
@@ -673,8 +679,11 @@ jobs:
 
       - name: Run unit tests past 24.8 days
         working-directory: tests/unit
-        # A timer stuck at the Int limit hangs the tests rather than failing them
-        timeout-minutes: 10
+        # A timer stuck at the Int limit hangs the tests rather than failing them.
+        # 10 minutes was too tight on a cold MSVC/x64 run: the job uploads its
+        # ndll first, but the timeout still marks the job failed and skips
+        # package-haxelib (and therefore publish-haxelib-branch).
+        timeout-minutes: 20
         env:
           ALSOFT_DRIVERS: "null"
         run: |
@@ -739,7 +748,13 @@ jobs:
 
       - name: Install Haxe dependencies
         run: |
-          haxelib install native-desktop 1.0.1 --quiet
+          # Lime 8.4.0 split these out of the core library. The windows job
+          # installs all four; missing ones make `haxelib run lime` fail with
+          # "Could not find haxelib lime" right after `haxelib dev lime`.
+          haxelib install native-desktop 1.1.0 --quiet
+          haxelib install native-ipc 1.0.0 --quiet
+          haxelib install StageWebView 1.0.1 --quiet
+          haxelib install wsproto 1.0.0 --quiet
           curl --output ../hxcpp-4.3.53.zip --location https://github.com/HaxeFoundation/hxcpp/releases/download/v4.3.53/hxcpp-4.3.53.zip
           haxelib install ../hxcpp-4.3.53.zip --quiet
           haxelib install format --quiet
@@ -749,6 +764,8 @@ jobs:
       - name: Rebuild Lime tools
         run: |
           haxelib dev lime ${{ github.workspace }}
+          haxelib list
+          haxelib path lime
           haxelib run lime rebuild tools -nocolor -verbose -nocffi
           haxelib run lime setup -alias -y -nocffi
 
@@ -1155,6 +1172,90 @@ jobs:
             !.git/
           compression-level: 9
           if-no-files-found: error
+
+  # Publishes the packaged haxelib (including the Windows ARM64 ndll built by
+  # windows-arm64 above) into the `haxelib` branch of THIS repository, so every
+  # consumer installs with one command:
+  #   haxelib git lime https://github.com/IceTheAxe/lime haxelib --always
+  # Pushing to another branch of the same repository needs only GITHUB_TOKEN
+  # (permissions: contents: write) -- no PAT, no LIB_REPO_TOKEN, no second repo.
+  # Setup SOP: E:/HaxeToolkit/.workbuddy/sync/WORKFLOW.md section 13.
+  publish-haxelib-branch:
+    name: Publish lime haxelib branch
+    needs: [package-haxelib]
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' }}
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    env:
+      LIB_BRANCH: haxelib
+    steps:
+
+      - name: Download packaged haxelib
+        uses: actions/download-artifact@v8
+        with:
+          name: lime-haxelib
+          path: packaged
+
+      - name: Verify packaged ndlls
+        run: |
+          set -e
+          # Never publish a half-built package: every platform job must have
+          # contributed its ndll before this artifact reaches the haxelib branch.
+          for p in Windows Windows64 WindowsArm64 Linux64 LinuxArm64 Mac64 MacArm64 Android iPhone; do
+            if ! ls packaged/ndll/$p/* >/dev/null 2>&1; then
+              echo "::error::missing ndll platform: $p"
+              exit 1
+            fi
+          done
+          if [ ! -f packaged/ndll/WindowsArm64/lime.ndll ]; then
+            echo "::error::lime-haxelib artifact is missing ndll/WindowsArm64/lime.ndll"
+            exit 1
+          fi
+          ls -l packaged/ndll/WindowsArm64/
+
+      # checkout persists GITHUB_TOKEN credentials in .git/config; the worktree
+      # below reuses them, so no cross-repo PAT is needed.
+      - name: Checkout source (develop)
+        uses: actions/checkout@v6
+        with:
+          path: source
+          fetch-depth: 1
+
+      - name: Mirror package into haxelib branch and push
+        working-directory: source
+        env:
+          RUN_ID: ${{ github.run_id }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -e
+          git config user.name "lime-ci-bot"
+          git config user.email "lime-ci-bot@users.noreply.github.com"
+          LIB_TREE="$RUNNER_TEMP/lime-lib-tree"
+
+          if git ls-remote --exit-code --heads origin "$LIB_BRANCH" >/dev/null 2>&1; then
+            git fetch --depth=1 origin "$LIB_BRANCH"
+            # Stay on a detached HEAD and push as HEAD:$LIB_BRANCH below. Creating
+            # a local branch with this name can collide with an existing worktree.
+            git worktree add --detach "$LIB_TREE" FETCH_HEAD
+          else
+            # First publish: an orphan branch with no shared history and, crucially,
+            # no .github/workflows, so a push to it cannot retrigger this build.
+            git worktree add --detach "$LIB_TREE"
+            git -C "$LIB_TREE" switch --orphan "$LIB_BRANCH"
+          fi
+
+          # --delete removes everything not in this build (including .github/ and
+          # project/). Only .git is excluded -- in a worktree it is a file.
+          rsync -a --delete --exclude '.git' "$GITHUB_WORKSPACE/packaged/" "$LIB_TREE/"
+          cd "$LIB_TREE"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "haxelib branch already up to date (CI run $RUN_ID)"
+          else
+            git commit -m "lime 8.4.0 self-built $SOURCE_SHA (CI run $RUN_ID, WinOnARM64)"
+            git push origin "HEAD:$LIB_BRANCH"
+          fi
 
   docs:
     runs-on: ubuntu-22.04

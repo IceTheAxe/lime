@@ -804,18 +804,21 @@ jobs:
           haxelib install native-ipc 1.0.0 --quiet
           haxelib install StageWebView 1.0.1 --quiet
           haxelib install wsproto 1.0.0 --quiet
+          # tools/tools.hxml now requires crossbyte (upstream 3015a6e58b)
+          haxelib install crossbyte 1.0.1 --quiet
           curl --output ../hxcpp-4.3.53.zip --location https://github.com/HaxeFoundation/hxcpp/releases/download/v4.3.53/hxcpp-4.3.53.zip
           haxelib install ../hxcpp-4.3.53.zip --quiet
           haxelib install format --quiet
           haxelib install hxp --quiet
           haxelib install utest --quiet
 
-      - name: Rebuild Lime tools
+      # CrossByte needs Haxe 4.3 to build the tools, then return to the job's own Haxe
+      - uses: ./.github/actions/rebuild-lime-tools
+        with:
+          haxe-version: ${{ env.HAXE_VERSION }}
+
+      - name: Set up Lime
         run: |
-          haxelib dev lime ${{ github.workspace }}
-          haxelib list
-          haxelib path lime
-          haxelib run lime rebuild tools -nocolor -verbose -nocffi
           haxelib run lime setup -alias -y -nocffi
 
       - name: Rebuild Lime (Windows ARM64)

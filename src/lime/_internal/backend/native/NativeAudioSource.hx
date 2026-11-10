@@ -45,6 +45,12 @@ class NativeAudioSource
 	private var parent:AudioSource;
 	private var ownsVorbisStream:Bool;
 	private var playing:Bool;
+	// A time set while the source isn't playing: OpenAL reports a rewound source's offset as 0 until it plays,
+	// so play() would otherwise start from the beginning
+	private var pendingTime:Int = -1;
+
+	// Set while AudioSource.playTogether plays this source, which then starts with the rest in one alSourcePlayv
+	private var playTogetherHandles:Array<ALSource>;
 	private var position:Vector4;
 	private var queuedBufferCount:Int;
 	private var queuedBufferLoopCounts:Array<Int>;
@@ -322,9 +328,62 @@ class NativeAudioSource
 		}
 		else
 		{
-			var time = completed ? 0 : getCurrentTime();
+			var time = completed ? 0 : (pendingTime >= 0 ? pendingTime : getCurrentTime());
 
 			setCurrentTime(time);
+		}
+	}
+
+	public static function playTogether(sources:Array<AudioSource>):Void
+	{
+		var handles:Array<ALSource> = [];
+		var started:Array<NativeAudioSource> = [];
+
+		for (source in sources)
+		{
+			if (source == null) continue;
+			var backend = @:privateAccess source.__backend;
+			if (backend.playTogetherHandles != null) continue;
+			backend.playTogetherHandles = handles;
+			started.push(backend);
+		}
+
+		var error:Dynamic = null;
+		var failed = false;
+
+		try
+		{
+			for (backend in started)
+			{
+				backend.play();
+			}
+		}
+		catch (e:Dynamic)
+		{
+			error = e;
+			failed = true;
+		}
+
+		for (backend in started)
+		{
+			backend.playTogetherHandles = null;
+		}
+
+		// Sources already played are started even when a later one fails, so none is left waiting
+		if (handles.length > 0) AL.sourcePlayv(handles);
+		if (failed) throw error;
+	}
+
+	/** Starts the source now, or with the rest of AudioSource.playTogether so they all begin in the same mixer update. **/
+	private function startSource():Void
+	{
+		if (playTogetherHandles != null)
+		{
+			if (playTogetherHandles.indexOf(handle) < 0) playTogetherHandles.push(handle);
+		}
+		else
+		{
+			AL.sourcePlay(handle);
 		}
 	}
 
@@ -761,7 +820,7 @@ class NativeAudioSource
 		}
 
 		var read = 0, total = 0, readMax;
-		shiftBufferTimeBlocks(vorbisFile.timeTell());
+		var startTime = vorbisFile.timeTell();
 
 		while (total < length)
 		{
@@ -784,6 +843,8 @@ class NativeAudioSource
 			}
 		}
 
+		// Record the buffer's start time only for a buffer that will be queued, as the SDL_sound reader does
+		if (total > 0) shiftBufferTimeBlocks(startTime);
 		return total;
 		#else
 		return 0;
@@ -1067,16 +1128,29 @@ class NativeAudioSource
 		{
 			return getLength();
 		}
+		else if (!playing && pendingTime >= 0)
+		{
+			return pendingTime;
+		}
 		else if (handle != null)
 		{
 			if (stream)
 			{
-				var time = (Std.int(bufferTimeBlocks[0] * 1000) + Std.int(AL.getSourcef(handle, AL.SEC_OFFSET) * 1000)) - parent.offset;
+				// The blocks hold the start times of the last buffers read, the newest last; the source plays the oldest
+				// one still queued, which is no longer the first block once the stream has run out and the queue shrinks
+				var head = STREAM_NUM_BUFFERS - queuedBufferCount;
+				if (head < 0) head = 0;
+				if (head >= STREAM_NUM_BUFFERS) head = STREAM_NUM_BUFFERS - 1;
+				var time = (Std.int(bufferTimeBlocks[head] * 1000) + Std.int(AL.getSourcef(handle, AL.SEC_OFFSET) * 1000)) - parent.offset;
 				if (time < 0) return 0;
 				return time;
 			}
 			else
 			{
+				// A source OpenAL has stopped by reaching its end rewinds its offset to 0, a moment before the timer
+				// marks it completed; it has played to the end
+				if (playing && AL.getSourcei(handle, AL.SOURCE_STATE) == AL.STOPPED) return getLength();
+
 				var offset = AL.getSourcei(handle, AL.BYTE_OFFSET);
 				var ratio = (offset / dataLength);
 				var totalSeconds = samples / parent.buffer.sampleRate;
@@ -1137,7 +1211,7 @@ class NativeAudioSource
 
 				if (playing)
 				{
-					AL.sourcePlay(handle);
+					startSource();
 				}
 			}
 			else if (parent.buffer != null)
@@ -1156,7 +1230,8 @@ class NativeAudioSource
 				var totalOffset = Std.int(dataLength * ratio);
 
 				AL.sourcei(handle, AL.BYTE_OFFSET, totalOffset);
-				if (playing) AL.sourcePlay(handle);
+				pendingTime = playing ? -1 : Std.int(secondOffset * 1000) - parent.offset;
+				if (playing) startSource();
 			}
 		}
 

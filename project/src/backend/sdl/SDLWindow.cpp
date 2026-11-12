@@ -50,8 +50,6 @@ namespace lime {
 	SDL_Cursor* SDLCursor::waitCursor = 0;
 	SDL_Cursor* SDLCursor::waitArrowCursor = 0;
 
-	static bool displayModeSet = false;
-
 #if defined (HX_LINUX) && !defined (RASPBERRYPI)
 	// Asks SDL for a 32-bit visual, which a compositor blends by its alpha, for
 	// the next window. Returns whether it set the hint, which is then reset, so
@@ -650,6 +648,7 @@ namespace lime {
 		sdlTexture = 0;
 		sdlRenderer = 0;
 		context = 0;
+		displayModeSet = false;
 		transparent = false;
 		useVulkan = (flags & WINDOW_FLAG_VULKAN) != 0;
 
@@ -779,7 +778,7 @@ namespace lime {
 
 				if (flags & WINDOW_FLAG_DEPTH_BUFFER) {
 
-					SDL_GL_SetAttribute (SDL_GL_DEPTH_SIZE, 32 - (flags & WINDOW_FLAG_STENCIL_BUFFER) ? 8 : 0);
+					SDL_GL_SetAttribute (SDL_GL_DEPTH_SIZE, 24);
 
 				}
 
@@ -886,9 +885,46 @@ namespace lime {
 		}
 		#endif
 
+		// A driver can refuse the pixel format asked for, as over Remote Desktop on
+		// Windows Server, so OpenGL tries again with the most common one
+		if (!sdlWindow && (sdlWindowFlags & SDL_WINDOW_OPENGL)) {
+
+			SDL_LogWarn (SDL_LOG_CATEGORY_VIDEO, "Could not create an OpenGL window with the pixel format asked for, trying a basic one: %s", SDL_GetError ());
+
+			SDL_GL_SetAttribute (SDL_GL_RED_SIZE, 8);
+			SDL_GL_SetAttribute (SDL_GL_GREEN_SIZE, 8);
+			SDL_GL_SetAttribute (SDL_GL_BLUE_SIZE, 8);
+			SDL_GL_SetAttribute (SDL_GL_ALPHA_SIZE, 8);
+			SDL_GL_SetAttribute (SDL_GL_DEPTH_SIZE, 24);
+			SDL_GL_SetAttribute (SDL_GL_STENCIL_SIZE, 8);
+			SDL_GL_SetAttribute (SDL_GL_MULTISAMPLEBUFFERS, 0);
+			SDL_GL_SetAttribute (SDL_GL_MULTISAMPLESAMPLES, 0);
+
+			sdlWindow = SDL_CreateWindow (title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, sdlWindowFlags);
+
+		}
+
+		#ifdef SOFTWARE_OPENGL
+		// Where the system's OpenGL cannot make a window at all, the first window
+		// tries again in software
+		if (!sdlWindow && retrySoftwareOpenGL) {
+
+			SDL_LogWarn (SDL_LOG_CATEGORY_VIDEO, "Could not create an OpenGL window, trying software OpenGL: %s", SDL_GetError ());
+			retrySoftwareOpenGL = false;
+
+			if (LoadSoftwareOpenGL ()) {
+
+				sdlWindow = SDL_CreateWindow (title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, sdlWindowFlags);
+
+			}
+
+		}
+		#endif
+
 		if (!sdlWindow) {
 
 			printf ("Could not create SDL window: %s.\n", SDL_GetError ());
+
 			return;
 
 		}
@@ -1906,6 +1942,22 @@ namespace lime {
 
 	void SDLWindow::SetDisplayMode (DisplayMode* displayMode) {
 
+		// No display mode returns the window to desktop (borderless) fullscreen, which,
+		// unlike an exclusive mode, is not minimized when another window takes focus
+		if (!displayMode) {
+
+			displayModeSet = false;
+
+			if ((SDL_GetWindowFlags (sdlWindow) & SDL_WINDOW_FULLSCREEN_DESKTOP) == SDL_WINDOW_FULLSCREEN) {
+
+				SDL_SetWindowFullscreen (sdlWindow, SDL_WINDOW_FULLSCREEN_DESKTOP);
+
+			}
+
+			return;
+
+		}
+
 		Uint32 pixelFormat = 0;
 
 		switch (displayMode->pixelFormat) {
@@ -2369,12 +2421,34 @@ namespace lime {
 
 		if (!window->sdlWindow) {
 
+			// Cleanup can replace SDL's error before Haxe reads it.
+			char* error = SDL_strdup (SDL_GetError ());
 			delete window;
+			if (error) {
+
+				SDL_SetError ("%s", error);
+				SDL_free (error);
+
+			}
 			return 0;
 
 		}
 
 		return window;
+
+	}
+
+
+	const char* GetWindowCreationError () {
+
+		return SDL_GetError ();
+
+	}
+
+
+	void AlertWindow (const char* message, const char* title) {
+
+		SDL_ShowSimpleMessageBox (SDL_MESSAGEBOX_ERROR, title ? title : "Lime", message, NULL);
 
 	}
 

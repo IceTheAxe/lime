@@ -66,6 +66,7 @@ zzzzzzz Add Windows ARM64 Platform
 - Added the `-arm64` flag to build HashLink/C applications for Apple Silicon on macOS, with binaries from `lime rebuild hl -arm64`. HashLink's JIT does not run on Apple Silicon yet.
 - Added running Windows builds through Wine with `lime test` on other platforms.
 - Added the `lime_skip_invisible_windows` define to stop rendering windows that are hidden.
+- Changed native streamed audio to refill from a thread of its own, so a stall on the main thread no longer drains a stream's buffers and drops its sound. Define `lime_audio_no_stream_thread` to refill from the main thread as before.
 - Changed native audio loading to decode through SDL_sound first, then Lime's own WAV and Ogg Vorbis decoders.
 - Changed asset copying and embedding to behave consistently across targets.
 - Changed OpenAL Soft HRTF to be disabled by default.
@@ -144,6 +145,7 @@ zzzzzzz Add Windows ARM64 Platform
 - Fixed a small memory leak for each `VorbisFile`.
 - Fixed `Font` glyph lookups for characters beyond U+FFFF, such as emoji, and for UTF-8 led by the bytes 0xE0, 0xED, and 0xF0, such as Devanagari and Thai.
 - Fixed `Window.maxWidth` setting the minimum size.
+- Fixed `Window.maximized` staying `true` after the system restores a maximized window, from its title bar or a keyboard shortcut.
 - Fixed the AIR `DNSResolverEvent` extern giving `bubbles` a String default, which failed builds that use it.
 
 8.3.2 (05/13/2026)

@@ -7,6 +7,11 @@
 -cp ../src
 -lib format
 -lib hxp
--lib crossbyte
-#-lib svg
+# NF: -lib crossbyte removed (2026-11-15). Its extraParams macros make the macro
+# interpreter compile lime.ui.Window & co, where NF's compat additions
+# (DropFileEvent etc.) are not macro-safe, and the genericBuild cascade through
+# EventMacro breaks on `new Event<Dynamic->Void>()`. The tool keeps looking
+# crossbyte up at runtime (RunScript.hx Haxelib.getPath) so html5 eval still
+# works whenever crossbyte is installed; FE's branch keeps the -lib.
+#-lib crossbyte
 -D optional-cffi

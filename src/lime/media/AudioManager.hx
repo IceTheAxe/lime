@@ -663,6 +663,9 @@ class AudioManager
 		var device = ALC.getContextsDevice(currentContext);
 		if (device == null) return;
 
+		// The __*Supported fields are declared under `#if lime_openal`; guard the
+		// assignments the same way so non-OpenAL builds (tools on neko) type-check.
+		#if lime_openal
 		__effectExtSupported = ALC.isExtensionPresent(null, "ALC_EXT_EFX");
 		__captureExtSupported = ALC.isExtensionPresent(null, 'ALC_EXT_CAPTURE');
 		__disconnectExtSupported = ALC.isExtensionPresent(null, 'ALC_EXT_disconnect');
@@ -677,6 +680,7 @@ class AudioManager
 		__moreFormatsSupported = AL.isExtensionPresent('AL_EXT_MCFORMATS');
 		__spatializeSupported = AL.isExtensionPresent('AL_SOFT_source_spatialize');
 		__stereoAnglesSupported = AL.isExtensionPresent('AL_EXT_STEREO_ANGLES');
+		#end
 
 		gain = __gain;
 		AL.distanceModel(AL.NONE);

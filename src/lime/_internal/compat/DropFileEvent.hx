@@ -13,7 +13,12 @@ import haxe.macro.Type;
     All listeners share priorities, cancellation and once-only semantics. */
 @:forward()
 abstract DropFileEvent(DropFileEventData) from DropFileEventData to DropFileEventData {
-    #if !macro
+    #if macro
+    // Window.hx field initializers are typed in macro context too (tool builds
+    // with -lib crossbyte pull lime.ui.Window into the macro interpreter), so a
+    // constructor must exist here as well; the real implementation is below.
+    public function new(?event:Dynamic) {this=new DropFileEventData(event);}
+    #else
     public function new(?event:Event<String->Void>) {this=new DropFileEventData(event);}
     @:from public static function fromLegacy(event:Event<String->Void>):DropFileEvent return new DropFileEvent(event);
     @:to public function toLegacy():Event<String->Void> return @:privateAccess this.event;
@@ -83,5 +88,9 @@ private class DropFileEventData {
 }
 
 #else
-private typedef DropFileEventData = Dynamic;
+// Macro-context twin of the runtime class above: keeps `new DropFileEvent()`
+// typable wherever lime.ui.Window gets compiled for the macro interpreter.
+private class DropFileEventData {
+    public function new(?event:Dynamic) {}
+}
 #end

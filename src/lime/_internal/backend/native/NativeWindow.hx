@@ -856,6 +856,48 @@ class NativeWindow
 		return value;
 	}
 
+	// NF port: split update/render scheduling hooks. The native primitives
+	// (lime_application_set_split_update / _set_render_frame_rate) land with the
+	// NF frame-scheduling port; guarded until then so the bridge ndll period
+	// cannot crash on a missing primitive.
+	public function setLockRender(value:Bool):Bool
+	{
+		#if ios
+		// The iOS frame pump does not dispatch a separate render event. Enabling
+		// split update/render would keep UPDATE running while RENDER never fires.
+		value = false;
+		#end
+
+		if (handle != null)
+		{
+			#if (!macro && lime_cffi)
+			try
+			{
+				NativeCFFI.lime_application_set_split_update(parent.application.__backend.handle, value);
+			}
+			catch (e:Dynamic) {}
+			#end
+		}
+
+		return value;
+	}
+
+	public function setDrawFrameRate(value:Float):Float
+	{
+		if (handle != null)
+		{
+			#if (!macro && lime_cffi)
+			try
+			{
+				NativeCFFI.lime_application_set_render_frame_rate(parent.application.__backend.handle, value);
+			}
+			catch (e:Dynamic) {}
+			#end
+		}
+
+		return value;
+	}
+
 	public function setMenu(menu:Menu):Void
 	{
 		if (handle != null)

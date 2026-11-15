@@ -6,6 +6,8 @@ import lime.app.Application;
 import lime.app.VSyncMode;
 import lime.graphics.RenderContextAttributes;
 import lime.math.Rectangle;
+import lime.system.Locale;
+import lime.system.Theme;
 import lime.ui.WindowAttributes;
 import lime.utils.ArrayBuffer;
 import lime.utils.UInt8Array;
@@ -399,6 +401,23 @@ class System
 		// readings stays right, where a plain cast would stop at the Int limit
 		var time = __getTimer() % 4294967296.0;
 		return Std.int(time < 2147483648.0 ? time : time - 4294967296.0);
+		#end
+	}
+
+	/**
+		Returns the number of milliseconds since the application was initialized (high precision).
+		Note: On CPP this uses the high-resolution timestamp. On other platforms it falls back to getTimer().
+	**/
+	public static function getTimerNano():Float
+	{
+		#if cpp
+		return untyped __global__.__time_stamp() * 1000.0;
+		#elseif (lime_cffi && !macro)
+		return NativeCFFI.lime_system_get_timer();
+		#elseif (js && html5)
+		return Browser.window.performance.now();
+		#else
+		return cast getTimer();
 		#end
 	}
 
@@ -970,6 +989,94 @@ class System
 		}
 
 		return __userDirectory;
+	}
+
+public static function getHint(key:String):String
+	{
+		if (key != null)
+		{
+			#if (lime_cffi && !macro)
+			return NativeCFFI.lime_system_get_hint(key);
+			#end
+		}
+
+		return null;
+	}
+
+public static function setHint(key:String, value:String):Void
+	{
+		if (key != null && value != null)
+		{
+			#if (lime_cffi && !macro)
+			return NativeCFFI.lime_system_set_hint(key, value);
+			#end
+		}
+	}
+
+public static function getPreferredLocales():Array<Locale>
+	{
+		var preferredLocales:Array<Locale> = [];
+
+		#if (lime_cffi && !macro)
+		var locales:Array<Dynamic> = NativeCFFI.lime_system_get_preferred_locales();
+
+		if (locales != null && locales.length > 0)
+		{
+			for (locale in locales)
+			{
+				var localeValue:String = locale.language;
+				if (locale.country != null && locale.country != "") localeValue += "-" + locale.country;
+				preferredLocales.push(new Locale(localeValue));
+			}
+		}
+		#elseif html5
+		var locales:Array<String> = [];
+
+		if (js.Browser.navigator.languages != null && js.Browser.navigator.languages.length > 0)
+		{
+			locales = js.Browser.navigator.languages;
+		}
+		else if (js.Browser.navigator.language != null)
+		{
+			locales = [js.Browser.navigator.language];
+		}
+
+		if (locales != null && locales.length > 0)
+		{
+			for (locale in locales)
+			{
+				var parts:Array<String> = locale.indexOf("-") != -1 ? locale.split("-") : locale.split("_");
+
+				if (parts.length > 0)
+				{
+					var localeValue = parts[0] + (parts.length > 1 ? "-" + parts[1] : "");
+					preferredLocales.push(new Locale(localeValue));
+				}
+			}
+		}
+		#end
+
+		return preferredLocales;
+	}
+
+	public static function getTheme():Theme
+	{
+		#if (js || electron)
+		if (Browser.window.matchMedia('(prefers-color-scheme: dark)').matches)
+		{
+			return Theme.DARK;
+		}
+		else if (Browser.window.matchMedia('(prefers-color-scheme: light)').matches)
+		{
+			return Theme.LIGHT;
+		}
+
+		return Theme.UNKNOWN;
+		#elseif (lime_cffi && !macro)
+		return cast NativeCFFI.lime_system_get_theme();
+		#else
+		return Theme.UNKNOWN;
+		#end
 	}
 }
 

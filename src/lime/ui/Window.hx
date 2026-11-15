@@ -61,6 +61,7 @@ class Window
 	public var borderless(get, set):Bool;
 	public var context(default, null):RenderContext;
 	public var cursor(get, set):MouseCursor;
+	public var disabledKeys:Array<KeyCode>;
 	public var display(get, null):Display;
 
 	/**
@@ -69,6 +70,7 @@ class Window
 		fullscreen, which is not minimized when another window takes focus.
 	**/
 	public var displayMode(get, set):DisplayMode;
+	public var lockRender(get, set):Bool;
 	#if (!lime_doc_gen || (js && html5))
 	public var element(default, null):#if (js && html5) Element #else Dynamic #end;
 	#end
@@ -88,6 +90,7 @@ class Window
 	 * displays with a higher refresh rate.
 	**/
 	public var frameRate(get, set):Float;
+	public var drawFrameRate(get, set):Int;
 
 	/**
 	 * The requested vertical-sync behavior for this window.
@@ -282,6 +285,8 @@ class Window
 	@:noCompletion private var __backend:WindowBackend;
 	@:noCompletion private var __appearance:WindowAppearance = SYSTEM;
 	@:noCompletion private var __borderless:Bool;
+	@:noCompletion private var __drawFrameRate:Int;
+	@:noCompletion private var __lockRender:Bool = false;
 	@:noCompletion private var __fullscreen:Bool;
 	@:noCompletion private var __height:Int;
 	@:noCompletion private var __hidden:Bool;
@@ -349,6 +354,13 @@ class Window
 		__attributes = attributes != null ? attributes : {};
 
 		if (Reflect.hasField(__attributes, "parameters")) parameters = __attributes.parameters;
+
+		disabledKeys = new Array ();
+
+		onKeyDown.add(function(keyCode, modifier) {
+			if (disabledKeys.indexOf (keyCode) > -1)
+				onKeyDown.cancel();
+		}, false, 999999);
 
 		__width = 0;
 		__height = 0;
@@ -2828,6 +2840,34 @@ class Window
 	{
 		setMaxSize(__maxWidth, value);
 		return __maxHeight;
+	}
+
+	@:noCompletion private inline function get_lockRender():Bool
+	{
+		return __lockRender;
+	}
+
+	@:noCompletion private function set_lockRender(value:Bool):Bool
+	{
+		#if ios
+		// NativeWindow forces the non-split iOS path because the platform frame
+		// pump has no independent render tick. Keep the public value in sync.
+		value = false;
+		#end
+
+		__backend.setLockRender(value);
+		return __lockRender = value;
+	}
+
+	@:noCompletion private inline function get_drawFrameRate():Int
+	{
+		return __drawFrameRate;
+	}
+
+	@:noCompletion private function set_drawFrameRate(value:Int):Int
+	{
+		__backend.setDrawFrameRate(value);
+		return __drawFrameRate = value;
 	}
 
 	@:noCompletion private inline function get_maximized():Bool

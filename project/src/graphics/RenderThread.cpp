@@ -234,8 +234,11 @@ namespace lime {
         if (window && context) { 
             if (SDL_GL_MakeCurrent(window, context) < 0) {
                 printf("RenderThread::Run: Initial context bind failed: %s\n", SDL_GetError());
+                fflush (stdout);
             } else {
                 contextHeld = true;
+                printf("[RT] render worker bound the GL context\n");
+                fflush (stdout);
                     std::lock_guard<std::mutex> lock(mutex);
                     condition.notify_all();
             }

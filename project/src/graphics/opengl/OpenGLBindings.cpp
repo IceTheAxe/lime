@@ -122,6 +122,9 @@ namespace lime {
 
 	void OpenGLBindings::SetMultiThreaded (bool enabled) {
 
+		printf ("[RT] lime_gl_set_multithreaded(%d), current=%d\n", enabled ? 1 : 0, isMultiThreaded ? 1 : 0);
+		fflush (stdout);
+
 		if (isMultiThreaded == enabled) return;
 
 		if (renderThread) {
@@ -162,12 +165,18 @@ namespace lime {
 					// the whole GL pipeline (glGetString -> null, shaders fail).
 					if (renderThread->WaitForContext(true, 2000) && renderThread->contextHeld.load(std::memory_order_acquire)) {
 						isMultiThreaded = true;
+						printf ("[RT] render worker online\n");
+						fflush (stdout);
 					} else {
 						printf("OpenGLBindings::SetMultiThreaded: render worker could not take the context, falling back to main-thread rendering\n");
+						fflush (stdout);
 						renderThread->Stop();
 						renderThread->MakeCurrent();
 						isMultiThreaded = false;
 					}
+				} else {
+					printf ("[RT] enable skipped: no current GL context on this thread (window=%p, context=%p)\n", (void*)window, (void*)context);
+					fflush (stdout);
 				}
 
 			}

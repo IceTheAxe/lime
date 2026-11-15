@@ -2575,6 +2575,19 @@ class NativeOpenGLRenderContext
 		return false;
 		#end
 	}
+	
+	public function setMultiThreaded(enabled:Bool):Void
+	{
+		#if (lime_cffi && (lime_opengl || lime_opengles) && !macro)
+		// Guarded until the NF render-thread native port lands (Phase 2); the
+		// bridge ndll period has no lime_gl_set_multithreaded primitive.
+		try
+		{
+			NativeCFFI.lime_gl_set_multithreaded(enabled);
+		}
+		catch (e:Dynamic) {}
+		#end
+	}
 
 	public function isShader(shader:GLShader):Bool
 	{
@@ -3410,5 +3423,12 @@ class NativeOpenGLRenderContext
 		}
 
 		__initialized = true;
+	}
+
+	public function blendBarrier():Void
+	{
+		#if (lime_cffi && (lime_opengl || lime_opengles) && !macro)
+		NativeCFFI.lime_gl_blend_barrier();
+		#end
 	}
 }

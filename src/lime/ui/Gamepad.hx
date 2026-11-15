@@ -264,13 +264,6 @@ class Gamepad
 		#end
 	}
 
-	public function setLED(red:Int, green:Int, blue:Int):Void
-	{
-		#if (lime_cffi && !macro)
-		NativeCFFI.lime_gamepad_set_led(this.id, red, green, blue);
-		#end
-	}
-
 	public var onAxisMovePrecise = new Event<GamepadAxis->Float->haxe.Int64->Void>();
 
 	public var onButtonDownPrecise = new Event<GamepadButton->haxe.Int64->Void>();

@@ -761,8 +761,6 @@ class AudioBuffer
     }
     // NF playback continues to use fully decoded PCM. The stream factories are
     // compatible aliases; they do not promise reduced memory use on this backend.
-    public static inline function fromBytesStream(bytes:Bytes):AudioBuffer return fromBytes(bytes);
-    public static inline function fromFileStream(path:String):AudioBuffer return fromFile(path);
     public static function fromDecoder(audioDecoder:Dynamic, stream:Bool=false, autoDisposeDecoder:Bool=false):AudioBuffer {
         if(audioDecoder==null)return null;
         var total:haxe.Int64=audioDecoder.total();

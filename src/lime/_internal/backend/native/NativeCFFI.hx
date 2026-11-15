@@ -3868,7 +3868,6 @@ class NativeCFFI
 	@:cffi private static function lime_al_cleanup():Void;
 
 	@:cffi private static function lime_al_delete_buffer(buffer:CFFIPointer):Void;
-@:cffi private static function lime_al_get_sourcedv_soft(source:CFFIPointer, param:Int, count:Int):Array<Float>;
 @:cffi private static function lime_al_delete_filter(buffer:CFFIPointer):Void;
 @:cffi private static function lime_al_delete_effect(buffer:CFFIPointer):Void;
 @:cffi private static function lime_al_delete_auxiliary_effect_slot(slot:CFFIPointer):Void;
@@ -4017,16 +4016,9 @@ class NativeCFFI
 
 	@:cffi private static function lime_alc_close_device(device:CFFIPointer):Bool;
 @:cffi private static function lime_alc_reopen_device_soft(device:CFFIPointer, newdevicename:String, attributes:Array<Int>):Bool;
-@:cffi private static function lime_alc_is_extension_present(device:CFFIPointer, extname:String):Bool;
-@:cffi private static function lime_alc_get_string_list(device:CFFIPointer, param:Int):Array<Dynamic>;
 @:cffi private static function lime_alc_get_doublev_soft(device:CFFIPointer, param:Int, count:Int):Array<Float>;
 @:cffi private static function lime_alc_event_control_soft(count:Int, events:Array<Int>, enable:Bool):Void;
 @:cffi private static function lime_alc_event_callback_soft(callback:Dynamic):Void;
-@:cffi private static function lime_alc_capture_stop(device:CFFIPointer):Void;
-@:cffi private static function lime_alc_capture_start(device:CFFIPointer):Void;
-@:cffi private static function lime_alc_capture_samples(device:CFFIPointer, buffer:Dynamic, samples:Int):Void;
-@:cffi private static function lime_alc_capture_open_device(devicename:String, frequency:Int, format:Int, buffersize:Int):CFFIPointer;
-@:cffi private static function lime_alc_capture_close_device(device:CFFIPointer):Bool;
 
 	@:cffi private static function lime_alc_create_context(device:CFFIPointer, attrlist:Dynamic):CFFIPointer;
 
@@ -4119,7 +4111,6 @@ class NativeCFFI
 		false));
 	private static var lime_al_cleanup = new cpp.Callable<Void->cpp.Void>(cpp.Prime._loadPrime("lime", "lime_al_cleanup", "v", false));
 	private static var lime_al_delete_buffer = new cpp.Callable<cpp.Object->cpp.Void>(cpp.Prime._loadPrime("lime", "lime_al_delete_buffer", "ov", false));
-private static var lime_al_get_sourcedv_soft = new cpp.Callable<cpp.Object->Int->Int->cpp.Object>(cpp.Prime._loadPrime("lime", "lime_al_get_sourcedv_soft", "oiio", false));
 private static var lime_al_delete_filter = new cpp.Callable<cpp.Object->cpp.Void>(cpp.Prime._loadPrime("lime", "lime_al_delete_filter", "ov", false));
 private static var lime_al_delete_effect = new cpp.Callable<cpp.Object->cpp.Void>(cpp.Prime._loadPrime("lime", "lime_al_delete_effect", "ov", false));
 private static var lime_al_delete_auxiliary_effect_slot = new cpp.Callable<cpp.Object->cpp.Void>(cpp.Prime._loadPrime("lime", "lime_al_delete_auxiliary_effect_slot", "ov", false));
@@ -4215,17 +4206,10 @@ private static var lime_al_delete_auxiliary_effect_slot = new cpp.Callable<cpp.O
 	private static var lime_al_speed_of_sound = new cpp.Callable<cpp.Float32->cpp.Void>(cpp.Prime._loadPrime("lime", "lime_al_speed_of_sound", "fv", false));
 	private static var lime_alc_close_device = new cpp.Callable<cpp.Object->Bool>(cpp.Prime._loadPrime("lime", "lime_alc_close_device", "ob", false));
 private static var lime_alc_reopen_device_soft = new cpp.Callable<cpp.Object->String->cpp.Object->Bool>(cpp.Prime._loadPrime("lime", "lime_alc_reopen_device_soft", "osob", false));
-private static var lime_alc_is_extension_present = new cpp.Callable<cpp.Object->String->Bool>(cpp.Prime._loadPrime("lime", "lime_alc_is_extension_present", "osb", false));
-private static var lime_alc_get_string_list = new cpp.Callable<cpp.Object->Int->cpp.Object>(cpp.Prime._loadPrime("lime", "lime_alc_get_string_list", "oio", false));
 private static var lime_alc_get_doublev_soft = new cpp.Callable<cpp.Object->Int->Int->cpp.Object>(cpp.Prime._loadPrime("lime", "lime_alc_get_doublev_soft",
 		"oiio", false));
 private static var lime_alc_event_control_soft = new cpp.Callable<Int->cpp.Object->Bool->cpp.Void>(cpp.Prime._loadPrime("lime", "lime_alc_event_control_soft", "iobv", false));
 private static var lime_alc_event_callback_soft = new cpp.Callable<cpp.Object->cpp.Void>(cpp.Prime._loadPrime("lime", "lime_alc_event_callback_soft", "ov", false));
-private static var lime_alc_capture_stop = new cpp.Callable<cpp.Object->cpp.Void>(cpp.Prime._loadPrime("lime", "lime_alc_capture_stop", "ov", false));
-private static var lime_alc_capture_start = new cpp.Callable<cpp.Object->cpp.Void>(cpp.Prime._loadPrime("lime", "lime_alc_capture_start", "ov", false));
-private static var lime_alc_capture_samples = new cpp.Callable<cpp.Object->cpp.Object->Int->cpp.Void>(cpp.Prime._loadPrime("lime", "lime_alc_capture_samples", "ooiv", false));
-private static var lime_alc_capture_open_device = new cpp.Callable<String->Int->Int->Int->cpp.Object>(cpp.Prime._loadPrime("lime", "lime_alc_capture_open_device", "siiio", false));
-private static var lime_alc_capture_close_device = new cpp.Callable<cpp.Object->Bool>(cpp.Prime._loadPrime("lime", "lime_alc_capture_close_device", "ob", false));
 	private static var lime_alc_create_context = new cpp.Callable<cpp.Object->cpp.Object->cpp.Object>(cpp.Prime._loadPrime("lime", "lime_alc_create_context",
 		"ooo", false));
 	private static var lime_alc_destroy_context = new cpp.Callable<cpp.Object->cpp.Void>(cpp.Prime._loadPrime("lime", "lime_alc_destroy_context", "ov", false));
@@ -4291,7 +4275,6 @@ private static var lime_alc_capture_close_device = new cpp.Callable<cpp.Object->
 	private static var lime_al_bufferiv = CFFI.load("lime", "lime_al_bufferiv", 3);
 	private static var lime_al_cleanup = CFFI.load("lime", "lime_al_cleanup", 0);
 	private static var lime_al_delete_buffer = CFFI.load("lime", "lime_al_delete_buffer", 1);
-private static var lime_al_get_sourcedv_soft = CFFI.load("lime", "lime_al_get_sourcedv_soft", 3);
 private static var lime_al_delete_filter = CFFI.load("lime", "lime_al_delete_filter", 1);
 private static var lime_al_delete_effect = CFFI.load("lime", "lime_al_delete_effect", 1);
 private static var lime_al_delete_auxiliary_effect_slot = CFFI.load("lime", "lime_al_delete_auxiliary_effect_slot", 1);
@@ -4368,16 +4351,9 @@ private static var lime_al_delete_auxiliary_effect_slot = CFFI.load("lime", "lim
 	private static var lime_al_speed_of_sound = CFFI.load("lime", "lime_al_speed_of_sound", 1);
 	private static var lime_alc_close_device = CFFI.load("lime", "lime_alc_close_device", 1);
 private static var lime_alc_reopen_device_soft = CFFI.load("lime", "lime_alc_reopen_device_soft", 3);
-private static var lime_alc_is_extension_present = CFFI.load("lime", "lime_alc_is_extension_present", 2);
-private static var lime_alc_get_string_list = CFFI.load("lime", "lime_alc_get_string_list", 2);
 private static var lime_alc_get_doublev_soft = CFFI.load("lime", "lime_alc_get_doublev_soft", 3);
 private static var lime_alc_event_control_soft = CFFI.load("lime", "lime_alc_event_control_soft", 3);
 private static var lime_alc_event_callback_soft = CFFI.load("lime", "lime_alc_event_callback_soft", 1);
-private static var lime_alc_capture_stop = CFFI.load("lime", "lime_alc_capture_stop", 1);
-private static var lime_alc_capture_start = CFFI.load("lime", "lime_alc_capture_start", 1);
-private static var lime_alc_capture_samples = CFFI.load("lime", "lime_alc_capture_samples", 3);
-private static var lime_alc_capture_open_device = CFFI.load("lime", "lime_alc_capture_open_device", 4);
-private static var lime_alc_capture_close_device = CFFI.load("lime", "lime_alc_capture_close_device", 1);
 	private static var lime_alc_create_context = CFFI.load("lime", "lime_alc_create_context", 2);
 	private static var lime_alc_destroy_context = CFFI.load("lime", "lime_alc_destroy_context", 1);
 	private static var lime_alc_get_contexts_device = CFFI.load("lime", "lime_alc_get_contexts_device", 1);
@@ -4438,7 +4414,6 @@ private static var lime_alc_capture_close_device = CFFI.load("lime", "lime_alc_c
 	@:hlNative("lime", "hl_al_cleanup") private static function lime_al_cleanup():Void {}
 
 	@:hlNative("lime", "hl_al_delete_buffer") private static function lime_al_delete_buffer(buffer:CFFIPointer):Void {}
-@:hlNative("lime", "hl_al_get_sourcedv_soft") private static function lime_al_get_sourcedv_soft(source:ALSource, param:Int, count:Int = 1):Array<Float> { return null; }
 @:hlNative("lime", "hl_al_delete_filter") private static function lime_al_delete_filter(filter:ALFilter):Void {}
 @:hlNative("lime", "hl_al_delete_effect") private static function lime_al_delete_effect(effect:ALEffect):Void {}
 @:hlNative("lime", "hl_al_delete_auxiliary_effect_slot") private static function lime_al_delete_auxiliary_effect_slot(aux:ALAuxiliaryEffectSlot):Void {}
@@ -4714,16 +4689,9 @@ private static var lime_alc_capture_close_device = CFFI.load("lime", "lime_alc_c
 
 	@:hlNative("lime", "hl_alc_close_device") private static function lime_alc_close_device(device:CFFIPointer):Bool
 @:hlNative("lime", "hl_alc_reopen_device_soft") private static function lime_alc_reopen_device_soft(device:ALDevice, newDeviceName:String, attributes:Array<Int>):Bool { return false; }
-@:hlNative("lime", "hl_alc_is_extension_present") private static function lime_alc_is_extension_present(device:ALDevice, extname:String):Bool { return false; }
-@:hlNative("lime", "hl_alc_get_string_list") private static function lime_alc_get_string_list(device:ALDevice, param:Int):Array<String> { return null; }
 @:hlNative("lime", "hl_alc_get_doublev_soft") private static function lime_alc_get_doublev_soft(device:ALDevice, param:Int, count:Int = 1):Array<Float> { return null; }
 @:hlNative("lime", "hl_alc_event_control_soft") private static function lime_alc_event_control_soft(events:Array<Int>, enable:Bool):Void {}
 @:hlNative("lime", "hl_alc_event_callback_soft") private static function lime_alc_event_callback_soft(callback:Dynamic):Void {}
-@:hlNative("lime", "hl_alc_capture_stop") private static function lime_alc_capture_stop(device:ALDevice):Void {}
-@:hlNative("lime", "hl_alc_capture_start") private static function lime_alc_capture_start(device:ALDevice):Void {}
-@:hlNative("lime", "hl_alc_capture_samples") private static function lime_alc_capture_samples(device:ALDevice, buffer:Bytes, samples:Int):Void {}
-@:hlNative("lime", "hl_alc_capture_open_device") private static function lime_alc_capture_open_device(deviceName:String, frequency:Int, format:Int, bufferSize:Int):ALDevice { return null; }
-@:hlNative("lime", "hl_alc_capture_close_device") private static function lime_alc_capture_close_device(device:ALDevice):Bool { return false; }
 	{
 		return false;
 	}
@@ -8163,7 +8131,6 @@ private static var lime_alc_capture_close_device = CFFI.load("lime", "lime_alc_c
 	#if (cpp && !cppia)
 	#if (disable_cffi || haxe_ver < "3.4.0")
 	@:cffi private static function lime_hb_blob_create(data:DataPointer, length:Int, memoryMode:Int):CFFIPointer;
-@:cffi private static function lime_hb_ft_font_changed(font:CFFIPointer):Void;
 
 	@:cffi private static function lime_hb_blob_create_sub_blob(parent:CFFIPointer, offset:Int, length:Int):CFFIPointer;
 
@@ -8697,7 +8664,6 @@ private static var lime_alc_capture_close_device = CFFI.load("lime", "lime_alc_c
 
 	#if hl
 	@:hlNative("lime", "hl_hb_blob_create") private static function lime_hb_blob_create(data:DataPointer, length:Int, memoryMode:Int):CFFIPointer
-@:hlNative("lime", "hl_hb_ft_font_changed") private static function lime_hb_ft_font_changed(font:CFFIPointer):Void {}
 	{
 		return null;
 	}

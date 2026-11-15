@@ -146,7 +146,9 @@ namespace lime {
 				SDL_GLContext context = SDL_GL_GetCurrentContext();
 
 				if (window && context) {
-					SDL_GL_MakeCurrent(window, NULL);
+					if (SDL_GL_MakeCurrent(window, NULL) < 0) {
+						printf("OpenGLBindings::SetMultiThreaded: failed to release the context on this thread: %s\n", SDL_GetError());
+					}
 
 					if (!renderThread->IsRunning()) {
 						renderThread->Start(window, context);
@@ -154,7 +156,18 @@ namespace lime {
 						renderThread->Resume();
 					}
 
-					isMultiThreaded = true;
+					// NF port: only commit to threaded mode once the worker really
+					// owns the context. A failed bind used to leave nobody holding
+					// it (main thread released, worker empty) which silently kills
+					// the whole GL pipeline (glGetString -> null, shaders fail).
+					if (renderThread->WaitForContext(true, 2000) && renderThread->contextHeld.load(std::memory_order_acquire)) {
+						isMultiThreaded = true;
+					} else {
+						printf("OpenGLBindings::SetMultiThreaded: render worker could not take the context, falling back to main-thread rendering\n");
+						renderThread->Stop();
+						renderThread->MakeCurrent();
+						isMultiThreaded = false;
+					}
 				}
 
 			}

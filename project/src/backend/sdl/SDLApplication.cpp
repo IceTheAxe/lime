@@ -515,6 +515,7 @@ namespace lime
 				|| RenderThread::activePendingFrames < RenderThread::MaxPendingFrames)
 			{
 				unsigned int flips = s_contextFlips;
+				renderEvent.type = RENDER; // RENDER_UPDATE was dispatched above; restore
 				RenderEvent::Dispatch(&renderEvent);
 				if (swapPaced) PaceFrameAfterRender(s_contextFlips != flips);
 			}

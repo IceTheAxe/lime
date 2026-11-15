@@ -113,8 +113,6 @@ class AudioManager
 	@:noCompletion private static var __moreFormatsSupported:Bool;
 	@:noCompletion private static var __spatializeSupported:Bool;
 	@:noCompletion private static var __stereoAnglesSupported:Bool;
-	#elseif flash
-	@:noCompletion private static var __flashSoundTransform:SoundTransform;
 	#end
 
 	/**

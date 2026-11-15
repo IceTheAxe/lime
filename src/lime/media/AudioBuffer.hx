@@ -763,7 +763,6 @@ class AudioBuffer
     // compatible aliases; they do not promise reduced memory use on this backend.
     public static inline function fromBytesStream(bytes:Bytes):AudioBuffer return fromBytes(bytes);
     public static inline function fromFileStream(path:String):AudioBuffer return fromFile(path);
-    public static inline function fromFilesStream(paths:Array<String>):AudioBuffer return fromFiles(paths);
     public static function fromDecoder(audioDecoder:Dynamic, stream:Bool=false, autoDisposeDecoder:Bool=false):AudioBuffer {
         if(audioDecoder==null)return null;
         var total:haxe.Int64=audioDecoder.total();

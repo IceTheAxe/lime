@@ -682,6 +682,44 @@ class AudioManager
 		AL.distanceModel(AL.NONE);
 	}
 
+	@:noCompletion private static inline function get_muted():Bool
+	{
+		return __muted;
+	}
+
+	@:noCompletion private static inline function set_muted(value:Bool):Bool
+	{
+		__muted = value;
+		if (context == null) return __muted;
+
+		#if !lime_doc_gen
+		#if lime_openal
+		if (context.type == OPENAL) AL.listenerf(AL.GAIN, value ? 0 : __gain);
+		#end
+		#end
+
+		return __muted;
+	}
+
+	@:noCompletion private static inline function get_gain():Float
+	{
+		return __gain;
+	}
+
+	@:noCompletion private static inline function set_gain(value:Float):Float
+	{
+		__gain = value;
+		if (context == null) return __gain;
+
+		#if !lime_doc_gen
+		#if lime_openal
+		if (context.type == OPENAL) AL.listenerf(AL.GAIN, __muted ? 0 : value);
+		#end
+		#end
+
+		return __gain;
+	}
+
 	@:noCompletion private static function __formatDeviceName(deviceName:String)
 	{
 		if (StringTools.startsWith(deviceName, 'OpenAL Soft on ')) return deviceName.substr(15);

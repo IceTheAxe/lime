@@ -1060,24 +1060,6 @@ class AL
 		#end
 	}
 
-	public static function getSourcedvSOFT(source:ALSource, param:Int, count:Int = 1):Array<Float>
-	{
-		#if (lime_cffi && lime_openalsoft && !macro)
-		var result = NativeCFFI.lime_al_get_sourcedv_soft(source, param, count);
-		#if hl
-		if (result == null) return [];
-		var _result:Array<Float> = [];
-		for (i in 0...result.length)
-			_result[i] = result[i];
-		return _result;
-		#else
-		return result;
-		#end
-		#else
-		return null;
-		#end
-	}
-
 	public static function getSourcei(source:ALSource, param:Int):Dynamic
 	{
 		#if (lime_cffi && lime_openal && !macro)

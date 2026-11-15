@@ -1583,6 +1583,39 @@ namespace lime {
 	}
 
 
+	// NF port: split update/render scheduling hooks
+	void lime_application_set_render_frame_rate (value application, double frameRate) {
+
+		Application* app = (Application*)val_data (application);
+		app->SetRenderFrameRate (frameRate);
+
+	}
+
+
+	HL_PRIM void HL_NAME(hl_application_set_render_frame_rate) (HL_CFFIPointer* application, double frameRate) {
+
+		Application* app = (Application*)application->ptr;
+		app->SetRenderFrameRate (frameRate);
+
+	}
+
+
+	void lime_application_set_split_update (value application, bool split) {
+
+		Application* app = (Application*)val_data (application);
+		app->SetLockRender (split);
+
+	}
+
+
+	HL_PRIM void HL_NAME(hl_application_set_split_update) (HL_CFFIPointer* application, bool split) {
+
+		Application* app = (Application*)application->ptr;
+		app->SetLockRender (split);
+
+	}
+
+
 	bool lime_application_set_menu (value application, value data) {
 
 		Application* app = (Application*)val_data (application);
@@ -14409,6 +14442,8 @@ namespace lime {
 	DEFINE_PRIME2v (lime_application_set_idle_events);
 	DEFINE_PRIME6v (lime_application_set_main_loop);
 	DEFINE_PRIME2v (lime_application_set_frame_rate);
+	DEFINE_PRIME2v (lime_application_set_render_frame_rate);
+	DEFINE_PRIME2v (lime_application_set_split_update);
 	DEFINE_PRIME5v (lime_application_set_modal_callbacks);
 	DEFINE_PRIME1v (lime_application_defer_modal_exception);
 	DEFINE_PRIME2 (lime_application_set_menu);
@@ -14779,6 +14814,8 @@ namespace lime {
 	DEFINE_HL_PRIM (_VOID, hl_application_set_idle_events, _TCFFIPOINTER _BOOL);
 	DEFINE_HL_PRIM (_VOID, hl_application_set_main_loop, _TCFFIPOINTER _I32 _F64 _I32 _I32 _I32);
 	DEFINE_HL_PRIM (_VOID, hl_application_set_frame_rate, _TCFFIPOINTER _F64);
+	DEFINE_HL_PRIM (_VOID, hl_application_set_render_frame_rate, _TCFFIPOINTER _F64);
+	DEFINE_HL_PRIM (_VOID, hl_application_set_split_update, _TCFFIPOINTER _BOOL);
 	DEFINE_HL_PRIM (_VOID, hl_application_set_modal_callbacks, _TCFFIPOINTER _FUN(_VOID, _NO_ARG) _FUN(_VOID, _NO_ARG) _FUN(_VOID, _NO_ARG) _FUN(_VOID, _NO_ARG));
 	DEFINE_HL_PRIM (_VOID, hl_application_defer_modal_exception, _TCFFIPOINTER);
 	DEFINE_HL_PRIM (_BOOL, hl_application_set_menu, _TCFFIPOINTER _TBYTES);

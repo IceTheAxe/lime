@@ -191,10 +191,13 @@ namespace lime
 
 		framePeriod = 1000.0 / 60.0;
 		idleEvents = false;
+		lockRender = false;
 		lastUpdate = 0.0;
 		lastSleepCalibration = 0;
 		nextIdle = 0.0;
+		nextRenderUpdate = 0.0;
 		nextUpdate = 0.0;
+		renderFramePeriod = 1000.0 / 60.0;
 		performanceFrequency = SDL_GetPerformanceFrequency();
 		clockStartCounter = SDL_GetPerformanceCounter();
 #if SDL_VERSION_ATLEAST(2, 0, 18)
@@ -309,7 +312,18 @@ namespace lime
 		if (activeUncapMode == MAIN_LOOP_UNCAP_OFF && requestedProfile == MAIN_LOOP_PROFILE_UNCAPPED)
 			activeUncapMode = MAIN_LOOP_UNCAP_SOFT;
 
-		if (activeUncapMode == MAIN_LOOP_UNCAP_SOFT || activeUncapMode == MAIN_LOOP_UNCAP_HARD)
+		if (lockRender)
+		{
+			// NF port: split update/render. The swap-paced and display-driven
+			// modes pace updates by the swap, but with split rendering only the
+			// render side swaps, so updates would free-run between render ticks.
+			// Updates keep the strict framePeriod pacing; render pacing is its
+			// own deadline and the vsync swap throttles it naturally.
+			schedulerUnthrottled = (activeUncapMode != MAIN_LOOP_UNCAP_OFF);
+			swapPaced = false;
+			useDisplayDrivenFallback = false;
+		}
+		else if (activeUncapMode == MAIN_LOOP_UNCAP_SOFT || activeUncapMode == MAIN_LOOP_UNCAP_HARD)
 		{
 			schedulerUnthrottled = true;
 		}
@@ -476,11 +490,46 @@ namespace lime
 
 		ApplicationEvent::Dispatch(&applicationEvent);
 
+		// NF port: logic-tick notification after every update dispatch. openfl
+		// broadcasts it as Event.ENTER_UPDATE; consumers handle multiple
+		// dispatches per rendered frame.
+		renderEvent.type = RENDER_UPDATE;
+		RenderEvent::Dispatch(&renderEvent);
+
 		if (renderFrame)
 		{
-			unsigned int flips = s_contextFlips;
-			RenderEvent::Dispatch(&renderEvent);
-			if (swapPaced) PaceFrameAfterRender(s_contextFlips != flips);
+			if (lockRender)
+			{
+				// Split mode: rendering runs on its own deadline, not inline
+				// after the update.
+				if (IsRenderDue(now))
+				{
+					DispatchRenderFrame(now);
+				}
+			}
+			else
+			{
+				unsigned int flips = s_contextFlips;
+				RenderEvent::Dispatch(&renderEvent);
+				if (swapPaced) PaceFrameAfterRender(s_contextFlips != flips);
+			}
+		}
+	}
+
+	void SDLApplication::DispatchRenderFrame(double now)
+	{
+
+		unsigned int flips = s_contextFlips;
+		renderEvent.type = RENDER;
+		RenderEvent::Dispatch(&renderEvent);
+		if (swapPaced) PaceFrameAfterRender(s_contextFlips != flips);
+
+		// Catch-up advance so a stalled loop cannot queue an unbounded render
+		// burst, mirroring AdvanceNextUpdate.
+		nextRenderUpdate += renderFramePeriod;
+		if (nextRenderUpdate <= now)
+		{
+			nextRenderUpdate = now + renderFramePeriod;
 		}
 	}
 
@@ -511,6 +560,21 @@ namespace lime
 			return true;
 
 		return (now >= nextUpdate);
+	}
+
+	bool SDLApplication::IsRenderDue(double now) const
+	{
+
+		return (lockRender && now >= nextRenderUpdate);
+	}
+
+	double SDLApplication::NextFrameDeadline() const
+	{
+
+		if (lockRender && nextRenderUpdate < nextUpdate)
+			return nextRenderUpdate;
+
+		return nextUpdate;
 	}
 
 	bool SDLApplication::IsIdleDue(double now) const
@@ -1731,6 +1795,27 @@ namespace lime
 		ApplyMainLoopSettings();
 	}
 
+	void SDLApplication::SetRenderFrameRate(double frameRate)
+	{
+
+		renderFramePeriod = (frameRate > 0.0) ? 1000.0 / frameRate : 1000.0;
+		nextRenderUpdate = GetCurrentTimeMs() + renderFramePeriod;
+	}
+
+	void SDLApplication::SetLockRender(bool split)
+	{
+
+		if (lockRender == split)
+			return;
+
+		lockRender = split;
+		nextRenderUpdate = GetCurrentTimeMs() + renderFramePeriod;
+
+		// The pacing modes differ between the split and combined paths, so
+		// re-apply the active settings (this also makes the next update due).
+		ApplyMainLoopSettings();
+	}
+
 	bool SDLApplication::SetMenu(const unsigned char *data, int length)
 	{
 
@@ -1812,7 +1897,8 @@ namespace lime
 		int queuedEvents = SDL_PeepEvents(NULL, 0, SDL_PEEKEVENT, SDL_FIRSTEVENT, SDL_LASTEVENT);
 		while (queuedEvents-- > 0)
 		{
-			if (handledEvent && !schedulerUnthrottled && IsFrameDue(GetCurrentTimeMs()))
+			double now = GetCurrentTimeMs();
+			if (handledEvent && !schedulerUnthrottled && (IsFrameDue(now) || IsRenderDue(now)))
 				break;
 			if (SDL_PeepEvents(&event, 1, SDL_GETEVENT, SDL_FIRSTEVENT, SDL_LASTEVENT) != 1)
 				break;
@@ -1833,10 +1919,17 @@ namespace lime
 
 		currentUpdate = GetCurrentTimeMs();
 
-		if (!inBackground && dispatchedFrames == framesBeforeEvents && IsFrameDue(currentUpdate))
+		if (!inBackground && dispatchedFrames == framesBeforeEvents)
 		{
-
-			DispatchFrame(currentUpdate);
+			if (IsFrameDue(currentUpdate))
+			{
+				DispatchFrame(currentUpdate);
+			}
+			else if (IsRenderDue(currentUpdate))
+			{
+				// Split mode: a render tick between two update ticks.
+				DispatchRenderFrame(currentUpdate);
+			}
 		}
 
 		return active;
@@ -1881,7 +1974,7 @@ namespace lime
 		{
 
 			double now = GetCurrentTimeMs();
-			double remaining = nextUpdate - now;
+			double remaining = NextFrameDeadline() - now;
 
 			if (schedulerUnthrottled || remaining <= 0.0)
 			{
@@ -1900,7 +1993,7 @@ namespace lime
 			{
 				System::GCEnterBlocking();
 				SDL_AtomicSet(&s_waitEventBlocking, 1);
-				while ((nextUpdate - GetCurrentTimeMs()) > 0.0)
+				while ((NextFrameDeadline() - GetCurrentTimeMs()) > 0.0)
 				{
 					SDL_PumpEvents();
 					int result = SDL_PeepEvents(event, 1, SDL_GETEVENT, SDL_FIRSTEVENT, SDL_LASTEVENT);
@@ -2015,7 +2108,7 @@ namespace lime
 				isBlocking = true;
 
 				double now = GetCurrentTimeMs();
-				double remaining = nextUpdate - now;
+				double remaining = NextFrameDeadline() - now;
 
 				if (schedulerUnthrottled || remaining <= 0.0)
 				{
@@ -2117,7 +2210,7 @@ namespace lime
 #if defined(HX_WINDOWS) && !defined(HX_WINRT)
 					// The initial pump above already provided fresh input. Once the frame
 					// deadline is reached, do not start another potentially costly OS pump.
-					if (!schedulerUnthrottled && IsFrameDue(GetCurrentTimeMs()))
+					if (!schedulerUnthrottled && (IsFrameDue(GetCurrentTimeMs()) || IsRenderDue(GetCurrentTimeMs())))
 					{
 						if (isBlocking)
 						{
@@ -2156,7 +2249,7 @@ namespace lime
 
 					default:
 
-						if ((nextUpdate - GetCurrentTimeMs()) <= 0.0)
+						if ((NextFrameDeadline() - GetCurrentTimeMs()) <= 0.0)
 						{
 
 							if (isBlocking)

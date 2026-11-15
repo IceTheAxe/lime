@@ -41,6 +41,8 @@ namespace lime {
 			virtual int Quit ();
 			virtual void SetMainLoop (int profile, double frameRate, int timePrecision, int busyWait, int uncapMode);
 			virtual void SetFrameRate (double frameRate);
+			virtual void SetRenderFrameRate (double frameRate);
+			virtual void SetLockRender (bool split);
 			virtual void SetIdleEvents (bool enabled);
 			virtual bool SetMenu (const unsigned char* data, int length);
 			virtual void SetVSyncMode (int vsyncMode);
@@ -64,13 +66,16 @@ namespace lime {
 			void CalibrateSleepGuard (bool force = false);
 			void DispatchFrame (double now, bool renderFrame = true);
 			void DispatchIdle (double remaining);
+			void DispatchRenderFrame (double now);
 			double GetCurrentTimeMs () const;
 			double GetDisplayRefreshRate () const;
 			Uint32 GetSleepGuardMs () const;
 			void HandleEvent (SDL_Event* event);
 			bool IsFrameDue (double now) const;
 			bool IsIdleDue (double now) const;
+			bool IsRenderDue (double now) const;
 			bool IsSchedulerUnthrottled () const;
+			double NextFrameDeadline () const;
 			void PaceFrameAfterRender (bool swapped);
 			void RefreshVSyncState ();
 #if defined(HX_WINDOWS) && !defined(HX_WINRT)
@@ -161,12 +166,17 @@ namespace lime {
 			bool idleEvents;
 			JoystickEvent joystickEvent;
 			KeyEvent keyEvent;
+			// NF port: split update/render scheduling. When lockRender is set,
+			// UPDATE keeps the normal scheduler while RENDER runs on its own
+			// renderFramePeriod deadline.
+			bool lockRender;
 			double lastUpdate;
 			Uint32 lastSleepCalibration;
 			MenuEvent menuEvent;
 			MouseEvent mouseEvent;
 			bool mouseCaptureRequested;
 			double nextIdle;
+			double nextRenderUpdate;
 			double nextUpdate;
 			OrientationEvent orientationEvent;
 			Uint64 performanceFrequency;
@@ -181,6 +191,7 @@ namespace lime {
 			int requestedTimePrecisionMode;
 			int requestedUncapMode;
 			int requestedVSyncMode;
+			double renderFramePeriod;
 			RenderEvent renderEvent;
 			SensorEvent sensorEvent;
 			bool schedulerUnthrottled;

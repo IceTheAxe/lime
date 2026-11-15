@@ -8526,7 +8526,6 @@ private static var lime_alc_capture_close_device = CFFI.load("lime", "lime_alc_c
 	private static var lime_hb_ft_font_create = new cpp.Callable<cpp.Object->cpp.Object>(cpp.Prime._loadPrime("lime", "lime_hb_ft_font_create", "oo", false));
 	private static var lime_hb_ft_font_create_referenced = new cpp.Callable<cpp.Object->cpp.Object>(cpp.Prime._loadPrime("lime",
 		"lime_hb_ft_font_create_referenced", "oo", false));
-	private static var lime_hb_ft_font_changed = new cpp.Callable<cpp.Object->cpp.Void>(cpp.Prime._loadPrime("lime", "lime_hb_ft_font_changed", "ov", false));
 	private static var lime_hb_ft_font_get_load_flags = new cpp.Callable<cpp.Object->Int>(cpp.Prime._loadPrime("lime", "lime_hb_ft_font_get_load_flags", "oi",
 		false));
 	private static var lime_hb_ft_font_set_load_flags = new cpp.Callable<cpp.Object->Int->cpp.Void>(cpp.Prime._loadPrime("lime",
@@ -9745,7 +9744,6 @@ private static var lime_alc_capture_close_device = CFFI.load("lime", "lime_alc_c
 
 
     private static var lime_application_alert:lime._internal.compat.Callable<(first:Dynamic,second:Dynamic,third:Dynamic,fourth:Dynamic,?fifth:Array<String>)->Int> = __applicationAlertCompat;
-    private static var lime_window_alert:lime._internal.compat.Callable<(handle:Dynamic,second:Dynamic,third:String,?fourth:String,?fifth:Array<String>)->Int> = __windowAlertCompat;
     private static var lime_file_dialog_open_directory:lime._internal.compat.Callable<(first:Dynamic,second:Dynamic,third:Dynamic,?path:String,?multiple:Bool)->Dynamic> = __openDirectoryCompat;
     private static var lime_file_dialog_open_file:lime._internal.compat.Callable<(first:Dynamic,second:Dynamic,third:Dynamic,?names:Dynamic,?patterns:Dynamic,?count:Int,?path:String,?multiple:Bool)->Dynamic> = __openFileCompat;
     private static var lime_file_dialog_save_file:lime._internal.compat.Callable<(first:Dynamic,second:Dynamic,third:Dynamic,?names:Dynamic,?patterns:Dynamic,?count:Int,?path:String)->Dynamic> = __saveFileCompat;

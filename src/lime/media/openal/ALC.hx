@@ -42,9 +42,6 @@ class ALC
 	public static inline var ENUMERATE_ALL_EXT:Int = 1;
 	public static inline var DEFAULT_ALL_DEVICES_SPECIFIER:Int = 0x1012;
 	public static inline var ALL_DEVICES_SPECIFIER:Int = 0x1013;
-	public static inline var CAPTURE_DEVICE_SPECIFIER:Int = 0x310;
-	public static inline var CAPTURE_DEFAULT_DEVICE_SPECIFIER:Int = 0x311;
-	public static inline var CAPTURE_SAMPLES:Int = 0x312;
 	public static inline var CONNECTED:Int = 0x313;
 	/* ALC_EXT_disconnect */
 	/* ALC_SOFT_device_clock */

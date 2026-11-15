@@ -674,6 +674,14 @@ class NativeApplication
 						NativeWindow.rendering = null;
 					}
 
+				case RENDER_UPDATE:
+					// NF port: differential-update tick (frame scheduling port wires
+					// the native dispatch; consumers bind via Window.onlyUpdate).
+					if (window.context != null)
+					{
+						window.onlyUpdate.dispatch();
+					}
+
 				case RENDER_CONTEXT_LOST:
 					if (window.__backend.useHardware && window.context != null)
 					{
@@ -1229,6 +1237,7 @@ class NativeApplication
 	var RENDER = 0;
 	var RENDER_CONTEXT_LOST = 1;
 	var RENDER_CONTEXT_RESTORED = 2;
+	var RENDER_UPDATE = 3;
 }
 
 @:keep /*private*/ class SensorEventInfo

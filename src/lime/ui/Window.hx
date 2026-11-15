@@ -228,6 +228,7 @@ class Window
 		Fired when the window is moved to a new position.
 	**/
 	public var onMove(default, null) = new Event<Float->Float->Void>();
+	public var onlyUpdate(default, null) = new Event<Void->Void>();
 
 	public var onRender(default, null) = new Event<RenderContext->Void>();
 	public var onRenderContextLost(default, null) = new Event<Void->Void>();

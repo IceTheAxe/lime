@@ -1,6 +1,6 @@
 package lime.media;
 import haxe.Timer;
-import haxe.StringTools;
+import StringTools;
 import lime.app.Event;
 import lime.system.System;
 #if (lime_cffi && !macro && lime_openal)

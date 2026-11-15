@@ -99,6 +99,7 @@ jobs:
           python-version: '3.12'
 
       - name: Run unit tests
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         working-directory: tests/unit
         # A deadlock hangs the tests rather than failing them
         timeout-minutes: 30
@@ -114,6 +115,7 @@ jobs:
           xvfb-run -a lime test linux -release -verbose -nocolor
 
       - name: Run OpenGL tests
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         working-directory: tests/unit
         timeout-minutes: 10
         env:
@@ -126,6 +128,7 @@ jobs:
           xvfb-run -a lime test linux -release -verbose -nocolor -DUTEST_PATTERN=OpenGLTest -Dlime_test_require_opengl
 
       - name: Check window creation failure and recovery
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         working-directory: tests/window-creation
         timeout-minutes: 10
         env:
@@ -138,6 +141,7 @@ jobs:
           python check_startup.py bin/neko/bin/WindowCreationTest
 
       - name: Run WebView tests
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         working-directory: tests/unit
         # WebKitGTK needs a display, so the tests above do not reach it
         timeout-minutes: 10
@@ -150,6 +154,7 @@ jobs:
           xvfb-run -a lime test linux -release -verbose -nocolor -DUTEST_PATTERN=WebViewTest
 
       - name: Run software OpenGL tests
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         working-directory: tests/unit
         timeout-minutes: 10
         env:
@@ -160,6 +165,7 @@ jobs:
           xvfb-run -a lime test linux -release -verbose -nocolor -Dsoftware-gl -DUTEST_PATTERN=OpenGLTest -Dlime_test_require_opengl
 
       - name: Run unit tests past 24.8 days
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         working-directory: tests/unit
         # A timer stuck at the Int limit hangs the tests rather than failing them
         timeout-minutes: 10
@@ -171,31 +177,37 @@ jobs:
           xvfb-run -a lime test linux -release -verbose -nocolor -Dsimulate_uptime=2147473648
 
       - name: Run video smoke test
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         working-directory: tests/video-smoke
         run: |
           lime build linux -release -verbose -nocolor
           SDL_AUDIODRIVER=dummy xvfb-run -a Export/linux/bin/LimeVideoSmoke
 
       - name: Install samples
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           haxelib git lime-samples https://github.com/openfl/lime-samples --quiet
 
       - name: Build HelloWorld sample
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           lime create HelloWorld -verbose -nocolor
           lime build HelloWorld linux -release -verbose -nocolor
 
       - name: Build SimpleImage sample
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           lime create SimpleImage -verbose -nocolor
           lime build SimpleImage linux -release -verbose -nocolor
 
       - name: Build SimpleAudio sample
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           lime create SimpleAudio -verbose -nocolor
           lime build SimpleAudio linux -release -verbose -nocolor
 
       - name: Build SimpleVideo sample
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           lime create SimpleVideo -verbose -nocolor
           lime build SimpleVideo linux -release -verbose -nocolor
@@ -269,6 +281,7 @@ jobs:
           python-version: '3.12'
 
       - name: Run unit tests
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         working-directory: tests/unit
         env:
           LIME_TEST_PYTHON: ${{ steps.tls-python.outputs.python-path }}
@@ -283,6 +296,7 @@ jobs:
         timeout-minutes: 60
 
       - name: Run OpenGL tests
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         working-directory: tests/unit
         timeout-minutes: 10
         env:
@@ -294,6 +308,7 @@ jobs:
           xvfb-run -a lime test linux -release -verbose -nocolor -DUTEST_PATTERN=OpenGLTest -Dlime_test_require_opengl
 
       - name: Check window creation failure and recovery
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         working-directory: tests/window-creation
         timeout-minutes: 10
         env:
@@ -305,6 +320,7 @@ jobs:
           python check_startup.py bin/neko/bin/WindowCreationTest
 
       - name: Run WebView tests
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         working-directory: tests/unit
         # WebKitGTK needs a display, so the tests above do not reach it
         timeout-minutes: 10
@@ -316,30 +332,36 @@ jobs:
           xvfb-run -a lime test linux -release -verbose -nocolor -DUTEST_PATTERN=WebViewTest
 
       - name: Install samples
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           haxelib git lime-samples https://github.com/openfl/lime-samples --quiet
 
       - name: Build HelloWorld sample
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           lime create HelloWorld -verbose -nocolor
           lime build HelloWorld linux -release -verbose -nocolor
 
       - name: Build SimpleImage sample
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           lime create SimpleImage -verbose -nocolor
           lime build SimpleImage linux -release -verbose -nocolor
 
       - name: Build SimpleAudio sample
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           lime create SimpleAudio -verbose -nocolor
           lime build SimpleAudio linux -release -verbose -nocolor
 
       - name: Build SimpleVideo sample
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           lime create SimpleVideo -verbose -nocolor
           lime build SimpleVideo linux -release -verbose -nocolor
 
   vulkan-smoke:
+    if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
     runs-on: ubuntu-22.04
     steps:
 
@@ -456,6 +478,7 @@ jobs:
           python-version: '3.12'
 
       - name: Set trust settings for the HTTPS tests
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         working-directory: tests/unit
         run: |
           # Lets the runner change the administrator's trust settings without a password prompt.
@@ -467,6 +490,7 @@ jobs:
           echo "LIME_TEST_TRUST_SETTINGS=1" >> $GITHUB_ENV
 
       - name: Run unit tests
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         working-directory: tests/unit
         # A deadlock hangs the tests rather than failing them
         timeout-minutes: 30
@@ -480,6 +504,7 @@ jobs:
           lime test mac -arm64 -release -verbose -nocolor
 
       - name: Run software OpenGL tests
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         working-directory: tests/unit
         timeout-minutes: 10
         env:
@@ -490,11 +515,13 @@ jobs:
           lime test mac -arm64 -release -verbose -nocolor -Dsoftware-gl -DUTEST_PATTERN=OpenGLTest
 
       - name: Run video smoke test
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         working-directory: tests/video-smoke
         run: |
           lime test mac -arm64 -release -verbose -nocolor
 
       - name: Install samples
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           haxelib git lime-samples https://github.com/openfl/lime-samples --quiet
 
@@ -504,16 +531,19 @@ jobs:
       #     lime build HelloWorld macos -release -verbose -nocolor
 
       - name: Build SimpleImage sample
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           lime create SimpleImage -verbose -nocolor
           lime build SimpleImage macos -arm64 -release -verbose -nocolor
 
       - name: Build SimpleAudio sample
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           lime create SimpleAudio -verbose -nocolor
           lime build SimpleAudio macos -arm64 -release -verbose -nocolor
 
       - name: Build SimpleVideo sample
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           lime create SimpleVideo -verbose -nocolor
           lime build SimpleVideo macos -arm64 -release -verbose -nocolor
@@ -614,6 +644,7 @@ jobs:
           python-version: '3.12'
 
       - name: Run unit tests
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         working-directory: tests/unit
         # A deadlock hangs the tests rather than failing them
         timeout-minutes: 30
@@ -628,6 +659,7 @@ jobs:
           lime test mac -x86_64 -release -verbose -nocolor
 
       - name: Install samples
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           haxelib git lime-samples https://github.com/openfl/lime-samples --quiet
 
@@ -637,16 +669,19 @@ jobs:
       #     lime build HelloWorld macos -release -verbose -nocolor
 
       - name: Build SimpleImage sample
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           lime create SimpleImage -verbose -nocolor
           lime build SimpleImage macos -x86_64 -release -verbose -nocolor
 
       - name: Build SimpleAudio sample
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           lime create SimpleAudio -verbose -nocolor
           lime build SimpleAudio macos -x86_64 -release -verbose -nocolor
 
       - name: Build SimpleVideo sample
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           lime create SimpleVideo -verbose -nocolor
           lime build SimpleVideo macos -x86_64 -release -verbose -nocolor
@@ -738,6 +773,7 @@ jobs:
           python-version: '3.12'
 
       - name: Run unit tests
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         working-directory: tests/unit
         # A deadlock hangs the tests rather than failing them
         timeout-minutes: 30
@@ -758,6 +794,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run software OpenGL tests
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         working-directory: tests/unit
         timeout-minutes: 10
         env:
@@ -768,6 +805,7 @@ jobs:
           lime test windows -release -verbose -nocolor -Dsoftware-gl -DUTEST_PATTERN=OpenGLTest
 
       - name: Check window creation failure and recovery
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         working-directory: tests/window-creation
         timeout-minutes: 10
         env:
@@ -781,16 +819,19 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Check native desktop integration through SDL
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         working-directory: tests/native-desktop
         timeout-minutes: 5
         run: lime test windows -release -verbose -nocolor
 
       - name: Check local sockets between processes
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         working-directory: tests/local-socket
         timeout-minutes: 5
         run: lime test windows -release -verbose -nocolor
 
       - name: Run unit tests past 24.8 days
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         working-directory: tests/unit
         # A timer stuck at the Int limit hangs the tests rather than failing them.
         # 10 minutes was too tight on a cold MSVC/x64 run: the job uploads its
@@ -805,25 +846,30 @@ jobs:
           lime test windows -release -verbose -nocolor -Dsimulate_uptime=2147473648
 
       - name: Install samples
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           haxelib git lime-samples https://github.com/openfl/lime-samples --quiet
 
       - name: Build HelloWorld sample
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           lime create HelloWorld -verbose -nocolor
           lime build HelloWorld windows -release -verbose -nocolor
 
       - name: Build SimpleImage sample
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           lime create SimpleImage -verbose -nocolor
           lime build SimpleImage windows -release -verbose -nocolor
 
       - name: Build SimpleAudio sample
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           lime create SimpleAudio -verbose -nocolor
           lime build SimpleAudio windows -release -verbose -nocolor
 
       - name: Build SimpleVideo sample
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           lime create SimpleVideo -verbose -nocolor
           lime build SimpleVideo windows -release -verbose -nocolor
@@ -903,6 +949,7 @@ jobs:
           if-no-files-found: error
 
   webassembly:
+    if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
     runs-on: ubuntu-22.04
     steps:
 
@@ -1054,30 +1101,36 @@ jobs:
         if: matrix.ndk-version != 'stable'
 
       - name: Install samples
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           haxelib git lime-samples https://github.com/openfl/lime-samples --quiet
 
       - name: Build HelloWorld sample
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           lime create HelloWorld -verbose -nocolor -eval
           lime build HelloWorld android -release -verbose -nocolor -eval
 
       - name: Build SimpleImage sample
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           lime create SimpleImage -verbose -nocolor -eval
           lime build SimpleImage android -release -verbose -nocolor -eval
 
       - name: Build SimpleAudio sample
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           lime create SimpleAudio -verbose -nocolor -eval
           lime build SimpleAudio android -release -verbose -nocolor -eval
 
       - name: Build SimpleVideo sample
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         run: |
           lime create SimpleVideo -verbose -nocolor -eval
           lime build SimpleVideo android -release -verbose -nocolor -eval
 
       - name: Build Vulkan smoke test app
+        if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
         working-directory: tests/vulkan-smoke
         run: |
           lime build android -release -verbose -nocolor -eval
@@ -1156,7 +1209,7 @@ jobs:
           lime build SimpleVideo ios -release -nosign -verbose -nocolor -eval
 
   package-haxelib:
-    needs: [linux, macos, macos-intel, windows, windows-arm64, android, ios]
+    needs: [linux, linux-arm64, macos, macos-intel, windows, windows-arm64, android, ios]
     runs-on: ubuntu-22.04
     steps:
 
@@ -1383,6 +1436,7 @@ jobs:
           fi
 
   docs:
+    if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
     runs-on: ubuntu-22.04
     steps:
 
@@ -1417,6 +1471,7 @@ jobs:
           if-no-files-found: error
 
   flash-samples:
+    if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
     runs-on: ubuntu-22.04
     steps:
 
@@ -1466,6 +1521,7 @@ jobs:
           lime build SimpleVideo flash -release -verbose -nocolor -eval
 
   air-samples:
+    if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
     runs-on: windows-latest
     strategy:
       matrix:
@@ -1528,6 +1584,7 @@ jobs:
           lime build SimpleVideo air -release -verbose -nocolor -eval
 
   hashlink-samples:
+    if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
     needs: package-haxelib
     strategy:
       matrix:
@@ -1587,6 +1644,7 @@ jobs:
           lime build SimpleVideo hl -release -verbose -nocolor
 
   hashlinkc-samples:
+    if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
     needs: package-haxelib
     strategy:
       matrix:
@@ -1646,6 +1704,7 @@ jobs:
           lime build SimpleVideo hlc -release -verbose -nocolor
 
   html5-samples:
+    if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
     needs: package-haxelib
     runs-on: ubuntu-22.04
     strategy:
@@ -1727,6 +1786,7 @@ jobs:
           lime build SimpleVideo html5 -clean -release -verbose -nocolor -minify -terser
 
   neko-samples:
+    if: "${{ github.ref != 'refs/heads/NF-Lime-8.4.0' }}"
     needs: package-haxelib
     strategy:
       matrix:

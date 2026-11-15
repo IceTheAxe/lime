@@ -971,9 +971,9 @@ namespace lime {
 			case CURLINFO_RTSP_SESSION_ID:
 			case CURLINFO_SCHEME:
 
-				char stringValue;
+				char* stringValue;
 				code = curl_easy_getinfo (handle, type, &stringValue);
-				return alloc_string (&stringValue);
+				return stringValue ? alloc_string (stringValue) : alloc_null ();
 				break;
 
 			case CURLINFO_RESPONSE_CODE:
@@ -1061,6 +1061,10 @@ namespace lime {
 				break;
 
 
+		default:
+
+			break;
+
 		}
 
 		return alloc_null ();
@@ -1089,16 +1093,19 @@ namespace lime {
 			case CURLINFO_RTSP_SESSION_ID:
 			case CURLINFO_SCHEME:
 			{
-				char stringValue;
+				char* stringValue;
 				code = curl_easy_getinfo (handle, type, &stringValue);
 
-				int size = strlen (&stringValue) + 1;
-				char* val = (char*)malloc (size);
-				memcpy (val, &stringValue, size);
+				if (stringValue) {
+					int size = strlen (stringValue) + 1;
+					char* val = (char*)malloc (size);
+					memcpy (val, stringValue, size);
 
-				result = hl_alloc_dynamic (&hlt_bytes);
-				result->v.b = val;
-				return result;
+					result = hl_alloc_dynamic (&hlt_bytes);
+					result->v.b = val;
+					return result;
+				}
+				return NULL;
 				break;
 			}
 
@@ -1180,6 +1187,10 @@ namespace lime {
 
 				break;
 
+
+		default:
+
+			break;
 
 		}
 

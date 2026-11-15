@@ -375,6 +375,7 @@
 		<file name="src/net/LocalSocket.cpp" />
 		<file name="src/net/LocalSocketBindings.cpp" />
 		<file name="src/net/LocalSocketEvent.cpp" />
+		<file name="src/system/BackendThread.cpp" />
 		<file name="src/system/CFFI.cpp" />
 		<file name="src/system/CFFIPointer.cpp" />
 		<file name="src/system/ClipboardEvent.cpp" />

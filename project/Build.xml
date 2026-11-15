@@ -56,7 +56,6 @@
 	<set name="NATIVE_TOOLKIT_HAVE_FREETYPE" value="1" if="LIME_FREETYPE" />
 	<set name="NATIVE_TOOLKIT_HAVE_HARFBUZZ" value="1" if="LIME_HARFBUZZ" />
 	<set name="NATIVE_TOOLKIT_HAVE_MBEDTLS" value="1" if="LIME_MBEDTLS" />
-	<set name="NATIVE_TOOLKIT_HAVE_PNG" value="1" if="LIME_PNG" />
 	<set name="NATIVE_TOOLKIT_HAVE_SDL" value="1" if="LIME_SDL" />
 	<set name="NATIVE_TOOLKIT_HAVE_SDL_SOUND" value="1" if="LIME_SDL_SOUND" />
 
@@ -228,10 +227,10 @@
 
 		<section if="LIME_PNG">
 
-			<compilerflag value="-I${NATIVE_TOOLKIT_PATH}/custom/png/" />
-			<compilerflag value="-I${NATIVE_TOOLKIT_PATH}/png/" />
+			<compilerflag value="-I${NATIVE_TOOLKIT_PATH}/spng/spng/" />
 			<compilerflag value="-I${NATIVE_TOOLKIT_PATH}/zlib/" />
 			<compilerflag value="-DLIME_PNG" />
+			<compilerflag value="-DSPNG_STATIC" />
 
 			<file name="src/graphics/format/PNG.cpp" />
 
@@ -438,7 +437,7 @@
 	<include name="lib/ogg-files.xml" />
 	<include name="lib/openal-files.xml" />
 	<include name="lib/pixman-files.xml" />
-	<include name="lib/png-files.xml" />
+	<include name="lib/spng-files.xml" />
 	<include name="lib/sdl-files.xml" />
 	<include name="lib/sdl_sound-files.xml" />
 	<include name="lib/tinyfiledialogs-files.xml" />

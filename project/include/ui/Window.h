@@ -34,6 +34,9 @@ namespace lime {
 			virtual void ContextFlip () = 0;
 			virtual void* ContextLock (bool useCFFIValue) = 0;
 			virtual void ContextMakeCurrent () = 0;
+			// NF port: extra-context management for the Origin/CNE compat layer
+			virtual void ContextMakeCurrent (void* context) {}
+			virtual void* CreateContext () { return 0; }
 			virtual void ContextUnlock () = 0;
 			virtual void Focus () = 0;
 			virtual void* GetContext () = 0;
@@ -78,6 +81,8 @@ namespace lime {
 			virtual void SetTextInputRect (Rectangle *rect) = 0;
 			virtual const char* SetTitle (const char* title) = 0;
 			virtual void SetVSyncMode (int vsyncMode) {}
+			// NF port: native window handle for the Origin SDL2 compat layer
+			virtual void* GetHandle () { return 0; }
 			virtual bool SetVisible (bool visible) = 0;
 			virtual bool SetAlwaysOnTop (bool alwaysOnTop) = 0;
 			virtual void WarpMouse (int x, int y) = 0;

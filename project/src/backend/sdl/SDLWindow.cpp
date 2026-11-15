@@ -1599,6 +1599,45 @@ namespace lime {
 
 	}
 
+	// NF port: make an externally-created context current for the Origin/CNE
+	// compat layer. Do not steal the context from a running render worker.
+	void SDLWindow::ContextMakeCurrent (void* context) {
+
+		if (renderThread.IsRunning () && OpenGLBindings::isMultiThreaded) {
+			return;
+		}
+
+		if (sdlWindow && context) {
+
+			SDL_GL_MakeCurrent (sdlWindow, (SDL_GLContext)context);
+
+		}
+
+	}
+
+
+	void* SDLWindow::CreateContext () {
+
+		if (sdlWindow) {
+
+			SDL_GL_SetAttribute (SDL_GL_SHARE_WITH_CURRENT_CONTEXT, 1);
+			SDL_GLContext extraContext = SDL_GL_CreateContext (sdlWindow);
+			SDL_GL_SetAttribute (SDL_GL_SHARE_WITH_CURRENT_CONTEXT, 0);
+			return (void*)extraContext;
+
+		}
+
+		return 0;
+
+	}
+
+
+	void* SDLWindow::GetHandle () {
+
+		return sdlWindow;
+
+	}
+
 	#ifdef LIME_CONTEXT_RECOVERY_TESTS
 	bool SDLWindow::TestContextReplacement (bool create) {
 

@@ -6,6 +6,12 @@
 #define NEKO_COMPATIBLE
 #endif
 
+// NF port: Group A compat primitives use the FreeType library handle
+#ifdef LIME_FREETYPE
+#include <ft2build.h>
+#include FT_FREETYPE_H
+#endif
+
 #include <system/CFFI.h>
 
 #include <system/BackendThread.h>
@@ -14556,6 +14562,16 @@ namespace lime {
 	DEFINE_PRIME1 (lime_system_get_hint);
 	DEFINE_PRIME2v (lime_system_set_hint);
 	DEFINE_PRIME0 (lime_system_get_preferred_locales);
+	// ---- NF port: Group A compat primitives consumed by the Origin SDL2 layer ----
+	// Joystick device registry lives in the SDL backend translation unit.
+	extern std::map<int, SDL_Joystick*> joysticks;
+
+	// Gesture registration holder (target currently has no GestureEvent class)
+	static ValuePointer* gestureCallback = nullptr;
+	static ValuePointer* gestureEventObject = nullptr;
+	#ifdef LIME_FREETYPE
+	static FT_Library fontLibrary = nullptr;
+	#endif
 	// NF port: BackendThread primitives are defined further below; the macros
 	// need the symbols declared first
 	void lime_backend_thread_start ();
@@ -14564,6 +14580,41 @@ namespace lime {
 	DEFINE_PRIME0v (lime_backend_thread_start);
 	DEFINE_PRIME0v (lime_backend_thread_stop);
 	DEFINE_PRIME1v (lime_backend_thread_run);
+	// NF port: forward declarations — the definitions live further below
+	int lime_system_get_theme ();
+	int lime_system_get_first_gyroscope_sensor_id ();
+	int lime_system_get_first_accelerometer_sensor_id ();
+	value lime_touch_get_devices ();
+	int lime_touch_get_device_type (int id);
+	value lime_touch_get_device_name (int id);
+	void lime_joystick_set_led (int id, int red, int green, int blue);
+	void lime_joystick_rumble (int id, double lowFrequencyRumble, double highFrequencyRumble, int duration);
+	void lime_gesture_event_manager_register (value callback, value eventObject);
+	bool lime_window_set_vsync_mode (value window, int mode);
+	double lime_window_get_handle (value window);
+	double lime_window_context_create (value window);
+	void lime_window_context_make_current_custom (value window, double context);
+	value lime_font_get_glyph_kerning (value fontHandle, int leftIndex, int rightIndex);
+	void lime_font_initialize_library ();
+	void lime_font_shutdown_library ();
+	int lime_application_alert (value application, int type, HxString message, HxString title, value buttons);
+	DEFINE_PRIME0 (lime_system_get_theme);
+	DEFINE_PRIME0 (lime_system_get_first_gyroscope_sensor_id);
+	DEFINE_PRIME0 (lime_system_get_first_accelerometer_sensor_id);
+	DEFINE_PRIME0 (lime_touch_get_devices);
+	DEFINE_PRIME1 (lime_touch_get_device_type);
+	DEFINE_PRIME1 (lime_touch_get_device_name);
+	DEFINE_PRIME4v (lime_joystick_set_led);
+	DEFINE_PRIME4v (lime_joystick_rumble);
+	DEFINE_PRIME2v (lime_gesture_event_manager_register);
+	DEFINE_PRIME2 (lime_window_set_vsync_mode);
+	DEFINE_PRIME1 (lime_window_get_handle);
+	DEFINE_PRIME1 (lime_window_context_create);
+	DEFINE_PRIME2v (lime_window_context_make_current_custom);
+	DEFINE_PRIME3 (lime_font_get_glyph_kerning);
+	DEFINE_PRIME0v (lime_font_initialize_library);
+	DEFINE_PRIME0v (lime_font_shutdown_library);
+	DEFINE_PRIME5 (lime_application_alert);
 	DEFINE_PRIME0 (lime_jni_getenv);
 	DEFINE_PRIME2v (lime_joystick_event_manager_register);
 	DEFINE_PRIME1 (lime_joystick_get_device_guid);
@@ -15175,6 +15226,194 @@ namespace lime {
 	DEFINE_HL_PRIM (_VOID, hl_backend_thread_start, _NO_ARG);
 	DEFINE_HL_PRIM (_VOID, hl_backend_thread_stop, _NO_ARG);
 	DEFINE_HL_PRIM (_VOID, hl_backend_thread_run, _FUN(_VOID, _NO_ARG));
+	// NF port: the four HL variants below register after their definitions
+	// (DEFINE_HL_PRIM expands to the HL_NAME-resolved symbol)
+
+
+	// ---- NF port: Group A compat primitives (ported from the 8.3.0-era fork;
+	// the Origin SDL2 compat layer binds these by name) ----
+	int lime_system_get_theme () {
+
+		// Bundled SDL has no SDL_GetSystemTheme; default to UNKNOWN (0).
+		return 0;
+
+	}
+
+
+	int lime_system_get_first_gyroscope_sensor_id () {
+
+		return -1;
+
+	}
+
+
+	int lime_system_get_first_accelerometer_sensor_id () {
+
+		return -1;
+
+	}
+
+
+	value lime_touch_get_devices () {
+
+		int count = SDL_GetNumTouchDevices ();
+		value values = alloc_array (count);
+
+		for (int i = 0; i < count; i++) {
+
+			val_array_set_i (values, i, alloc_int ((int)SDL_GetTouchDevice (i)));
+
+		}
+
+		return values;
+
+	}
+
+
+	int lime_touch_get_device_type (int id) {
+
+		SDL_TouchDeviceType type = SDL_GetTouchDeviceType ((SDL_TouchID)id);
+
+		switch (type) {
+
+			case SDL_TOUCH_DEVICE_DIRECT: return 0;
+			case SDL_TOUCH_DEVICE_INDIRECT_ABSOLUTE: return 1;
+			case SDL_TOUCH_DEVICE_INDIRECT_RELATIVE: return 2;
+			default: return -1;
+
+		}
+
+	}
+
+
+	value lime_touch_get_device_name (int id) {
+
+		// SDL_GetTouchDeviceName is absent from the bundled SDL headers; return null.
+		return alloc_null ();
+
+	}
+
+
+	void lime_joystick_set_led (int id, int red, int green, int blue) {
+
+		auto it = joysticks.find (id);
+		if (it == joysticks.end ()) return;
+		SDL_JoystickSetLED (it->second, (Uint8)red, (Uint8)green, (Uint8)blue);
+
+	}
+
+
+	void lime_joystick_rumble (int id, double lowFrequencyRumble, double highFrequencyRumble, int duration) {
+
+		auto it = joysticks.find (id);
+		if (it == joysticks.end ()) return;
+
+		if (lowFrequencyRumble < 0.0) lowFrequencyRumble = 0.0;
+		else if (lowFrequencyRumble > 1.0) lowFrequencyRumble = 1.0;
+		if (highFrequencyRumble < 0.0) highFrequencyRumble = 0.0;
+		else if (highFrequencyRumble > 1.0) highFrequencyRumble = 1.0;
+
+		SDL_JoystickRumble (it->second, (Uint16)(lowFrequencyRumble * 0xFFFF), (Uint16)(highFrequencyRumble * 0xFFFF), duration);
+
+	}
+
+
+	void lime_gesture_event_manager_register (value callback, value eventObject) {
+
+		if (gestureCallback) delete gestureCallback;
+		if (gestureEventObject) delete gestureEventObject;
+		gestureCallback = new ValuePointer (callback);
+		gestureEventObject = new ValuePointer (eventObject);
+
+	}
+
+
+	bool lime_window_set_vsync_mode (value window, int mode) {
+
+		SDLWindow *targetWindow = (SDLWindow*)val_data (window);
+		if (targetWindow == nullptr) return false;
+		// upstream SetVSyncMode returns void; report success unless absent
+		targetWindow->SetVSyncMode (mode);
+		return true;
+
+	}
+
+
+	double lime_window_get_handle (value window) {
+
+		Window *targetWindow = (Window*)val_data (window);
+		return (double)(uintptr_t)targetWindow->GetHandle ();
+
+	}
+
+
+	double lime_window_context_create (value window) {
+
+		Window* windowObject = (Window*)val_data (window);
+		return (uintptr_t)windowObject->CreateContext ();
+
+	}
+
+
+	void lime_window_context_make_current_custom (value window, double context) {
+
+		((Window*)val_data (window))->ContextMakeCurrent ((void*)(uintptr_t)context);
+
+	}
+
+
+	value lime_font_get_glyph_kerning (value fontHandle, int leftIndex, int rightIndex) {
+
+		Font *font = (Font*)val_data (fontHandle);
+		return (value)font->GetKerning (leftIndex, rightIndex);
+
+	}
+
+
+	void lime_font_initialize_library () {
+		#ifdef LIME_FREETYPE
+		if (!fontLibrary) FT_Init_FreeType (&fontLibrary);
+		#endif
+	}
+
+
+	void lime_font_shutdown_library () {
+		#ifdef LIME_FREETYPE
+		if (fontLibrary) {
+			FT_Done_FreeType (fontLibrary);
+			fontLibrary = nullptr;
+		}
+		#endif
+	}
+
+
+	HL_PRIM void HL_NAME(hl_font_initialize_library) () {
+		lime_font_initialize_library ();
+	}
+
+
+	HL_PRIM void HL_NAME(hl_font_shutdown_library) () {
+		lime_font_shutdown_library ();
+	}
+
+
+	HL_PRIM double HL_NAME(hl_window_context_create) (HL_CFFIPointer* window) {
+
+		return (uintptr_t)((Window*)window->ptr)->CreateContext ();
+
+	}
+
+
+	HL_PRIM void HL_NAME(hl_window_context_make_current_custom) (HL_CFFIPointer* window, double context) {
+
+		((Window*)window->ptr)->ContextMakeCurrent ((void*)(uintptr_t)context);
+
+	}
+
+	DEFINE_HL_PRIM (_VOID, hl_font_initialize_library, _NO_ARG);
+	DEFINE_HL_PRIM (_VOID, hl_font_shutdown_library, _NO_ARG);
+	DEFINE_HL_PRIM (_F64, hl_window_context_create, _TCFFIPOINTER);
+	DEFINE_HL_PRIM (_VOID, hl_window_context_make_current_custom, _TCFFIPOINTER _F64);
 
 
 	void lime_backend_thread_start () {

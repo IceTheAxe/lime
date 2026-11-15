@@ -232,15 +232,30 @@ namespace lime {
 
         // Make context current on this thread 
         if (window && context) { 
-            if (SDL_GL_MakeCurrent(window, context) < 0) {
-                printf("RenderThread::Run: Initial context bind failed: %s\n", SDL_GetError());
+            // NF port: the handover races with whatever the main thread had
+            // pending on the same context, so wglMakeCurrent can come back with
+            // "resource in use" on the first try. Retry briefly before giving
+            // up instead of silently dropping to main-thread rendering.
+            bool bound = false;
+            for (int attempt = 0; attempt < 6 && running; ++attempt) {
+                if (SDL_GL_MakeCurrent(window, context) == 0) {
+                    bound = true;
+                    break;
+                }
+                printf("RenderThread::Run: context bind attempt %d failed: %s\n", attempt + 1, SDL_GetError());
                 fflush (stdout);
-            } else {
+                std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            }
+
+            if (bound) {
                 contextHeld = true;
                 printf("[RT] render worker bound the GL context\n");
                 fflush (stdout);
                     std::lock_guard<std::mutex> lock(mutex);
                     condition.notify_all();
+            } else {
+                printf("RenderThread::Run: Initial context bind failed: %s\n", SDL_GetError());
+                fflush (stdout);
             }
         } 
 

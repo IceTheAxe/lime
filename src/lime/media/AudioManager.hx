@@ -1,6 +1,8 @@
 package lime.media;
 import haxe.Timer;
+import haxe.StringTools;
 import lime.app.Event;
+import lime.system.System;
 #if (lime_cffi && !macro && lime_openal)
 import lime._internal.backend.native.NativeCFFI;
 import lime._internal.backend.native.NativeAudioSource;
@@ -649,5 +651,13 @@ class AudioManager
 			outputDeviceName = currentName;
 		}
 		#end
+	}
+
+	@:noCompletion private static function __formatDeviceName(deviceName:String)
+	{
+		if (StringTools.startsWith(deviceName, 'OpenAL Soft on ')) return deviceName.substr(15);
+		else if (StringTools.startsWith(deviceName, 'OpenAL on ')) return deviceName.substr(10);
+		else if (StringTools.startsWith(deviceName, 'Generic Software on ')) return deviceName.substr(20);
+		else return deviceName;
 	}
 }

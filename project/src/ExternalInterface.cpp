@@ -1898,6 +1898,22 @@ namespace lime {
 	}
 
 
+	void writeBytesToFile (const char* path, unsigned char* data, int length) {
+		if (!path) return;
+		FILE_HANDLE* file = lime::fopen (path, "wb");
+		if (!file) return;
+		if (data && length > 0) lime::fwrite (data, 1, (size_t)length, file);
+		lime::fclose (file);
+	}
+
+
+	void lime_bytes_write_file (HxString path, value bytes) {
+		Bytes data (bytes);
+		std::string filePath (hxs_utf8 (path, nullptr));
+		writeBytesToFile (filePath.c_str (), data.b, data.length);
+	}
+
+
 	double lime_cffi_get_native_pointer (value handle) {
 
 		return (uintptr_t)val_data (handle);
@@ -14405,6 +14421,7 @@ namespace lime {
 	DEFINE_PRIME1 (lime_bytes_get_data_pointer);
 	DEFINE_PRIME2 (lime_bytes_get_data_pointer_offset);
 	DEFINE_PRIME2 (lime_bytes_read_file);
+	DEFINE_PRIME2v (lime_bytes_write_file);
 	DEFINE_PRIME1 (lime_cffi_get_native_pointer);
 	DEFINE_PRIME1 (lime_cffi_set_finalizer);
 	DEFINE_PRIME2v (lime_clipboard_event_manager_register);

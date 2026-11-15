@@ -1,0 +1,13 @@
+diff --git a/src/lime/graphics/ImageBuffer.hx b/src/lime/graphics/ImageBuffer.hx
+index fddbe81d4..fb7fe75dd 100644
+--- a/src/lime/graphics/ImageBuffer.hx
++++ b/src/lime/graphics/ImageBuffer.hx
+@@ -79,6 +79,8 @@ class ImageBuffer
+ 	**/
+ 	public var width:Int;
+ 
++	public var graphicScale:Float = 1.0;
++
+ 	@:noCompletion private var __srcBitmapData:#if flash BitmapData #else Dynamic #end;
+ 	@:noCompletion private var __srcCanvas:#if (js && html5) CanvasElement #else Dynamic #end;
+ 	@:noCompletion private var __srcContext:#if (js && html5) CanvasRenderingContext2D #else Dynamic #end;

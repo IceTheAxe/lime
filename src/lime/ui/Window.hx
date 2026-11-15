@@ -2812,6 +2812,22 @@ class Window
 		return value;
 	}
 
+	// NF port: compatibility shim over the upstream `vsyncMode` property for
+	// Origin/CNE callers that use the FunkinCrew-style API.
+	public function setVSyncMode(mode:WindowVSyncMode):Bool
+	{
+		var mapped:VSyncMode = switch (mode)
+		{
+			case WindowVSyncMode.OFF: VSyncMode.OFF;
+			case WindowVSyncMode.ON: VSyncMode.ON;
+			case WindowVSyncMode.ADAPTIVE: VSyncMode.ADAPTIVE;
+			default: VSyncMode.ON;
+		}
+
+		vsyncMode = mapped;
+		return true;
+	}
+
 	@:noCompletion private inline function get_fullscreen():Bool
 	{
 		return __fullscreen;

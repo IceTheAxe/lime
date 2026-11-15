@@ -1,0 +1,668 @@
+diff --git a/project/src/ExternalInterface.cpp b/project/src/ExternalInterface.cpp
+index 39ccdcf3d..742835af0 100644
+--- a/project/src/ExternalInterface.cpp
++++ b/project/src/ExternalInterface.cpp
+@@ -29,6 +29,8 @@
+ #include <system/OrientationEvent.h>
+ #include <system/SensorEvent.h>
+ #include <system/System.h>
++#include <system/BackendThread.h>
++#include <system/ValuePointer.h>
+ #include <text/Font.h>
+ #include <ui/Cursor.h>
+ #include <ui/DropEvent.h>
+@@ -47,7 +49,14 @@
+ #include <ui/WindowEvent.h>
+ #include <utils/compress/LZMA.h>
+ #include <utils/compress/Zlib.h>
++#include <utils/Bytes.h>
+ #include <vm/NekoVM.h>
++#include "graphics/opengl/OpenGL.h"
++
++#ifdef LIME_FREETYPE
++#include <ft2build.h>
++#include FT_FREETYPE_H
++#endif
+ 
+ #ifdef HX_WINDOWS
+ #include <locale>
+@@ -60,9 +69,271 @@
+ 
+ DEFINE_KIND (k_finalizer);
+ 
++#define SDL_MAIN_HANDLED
++#include <SDL.h>
++#include <map>
+ 
+ namespace lime {
+ 
++	// ---- Group A (non-decoder) native functions integrated from upstream lime ----
++	// Gamepad/Joystick device registries live in the SDL backend translation units.
++	extern std::map<int, SDL_GameController*> gameControllers;
++	extern std::map<int, SDL_Joystick*> joysticks;
++
++	// Gesture registration holder (target currently has no GestureEvent class)
++	static ValuePointer* gestureCallback = nullptr;
++	static ValuePointer* gestureEventObject = nullptr;
++	#ifdef LIME_FREETYPE
++	static FT_Library fontLibrary = nullptr;
++	#endif
++
++
++	void lime_font_initialize_library () {
++		#ifdef LIME_FREETYPE
++		if (!fontLibrary) FT_Init_FreeType (&fontLibrary);
++		#endif
++	}
++
++
++	void lime_font_shutdown_library () {
++		#ifdef LIME_FREETYPE
++		if (fontLibrary) {
++			FT_Done_FreeType (fontLibrary);
++			fontLibrary = nullptr;
++		}
++		#endif
++	}
++
++
++	void writeBytesToFile (const char* path, unsigned char* data, int length) {
++		if (!path) return;
++		FILE_HANDLE* file = lime::fopen (path, "wb");
++		if (!file) return;
++		if (data && length > 0) lime::fwrite (data, 1, (size_t)length, file);
++		lime::fclose (file);
++	}
++
++
++	void lime_bytes_write_file (HxString path, value bytes) {
++		Bytes data (bytes);
++		std::string filePath (hxs_utf8 (path, nullptr));
++		writeBytesToFile (filePath.c_str (), data.b, data.length);
++	}
++
++
++	HL_PRIM void HL_NAME(hl_font_initialize_library) () {
++		lime_font_initialize_library ();
++	}
++
++
++	HL_PRIM void HL_NAME(hl_font_shutdown_library) () {
++		lime_font_shutdown_library ();
++	}
++
++
++	HL_PRIM void HL_NAME(hl_bytes_write_file) (hl_vstring* path, Bytes* bytes) {
++		char* filePath = path ? (char*)hl_to_utf8 ((const uchar*)path->bytes) : nullptr;
++		writeBytesToFile (filePath, bytes ? bytes->b : nullptr, bytes ? bytes->length : 0);
++		free (filePath);
++	}
++
++
++	value lime_system_get_hint (HxString hintKey) {
++
++		std::string key (hxs_utf8 (hintKey, nullptr));
++		if (key.rfind ("SDL_", 0) != 0) key = "SDL_" + key;
++		const char *hint = SDL_GetHint (key.c_str ());
++		if (hint) return alloc_string (hint);
++		else return alloc_null ();
++
++	}
++
++
++	void lime_system_set_hint (HxString hintKey, HxString hintValue) {
++
++		std::string key (hxs_utf8 (hintKey, nullptr));
++		if (key.rfind ("SDL_", 0) != 0) key = "SDL_" + key;
++		SDL_SetHint (key.c_str (), hxs_utf8 (hintValue, nullptr));
++
++	}
++
++
++	int lime_system_get_theme () {
++
++		// Bundled SDL has no SDL_GetSystemTheme; default to UNKNOWN (0).
++		return 0;
++
++	}
++
++
++	value lime_system_get_preferred_locales () {
++
++		SDL_Locale *preferredLocales = SDL_GetPreferredLocales ();
++
++		if (preferredLocales) {
++
++			int count = 0;
++			while (preferredLocales[count].language) count++;
++
++			value values = alloc_array (count);
++
++			for (int i = 0; i < count; i++) {
++
++				value value = alloc_empty_object ();
++				alloc_field (value, val_id ("language"), alloc_string (preferredLocales[i].language));
++				alloc_field (value, val_id ("country"), preferredLocales[i].country ? alloc_string (preferredLocales[i].country) : alloc_null ());
++				val_array_set_i (values, i, value);
++
++			}
++
++			SDL_free (preferredLocales);
++			return values;
++
++		}
++
++		return alloc_null ();
++
++	}
++
++
++	int lime_system_get_first_gyroscope_sensor_id () {
++
++		return -1;
++
++	}
++
++
++	int lime_system_get_first_accelerometer_sensor_id () {
++
++		return -1;
++
++	}
++
++
++	value lime_font_get_glyph_kerning (value fontHandle, int leftIndex, int rightIndex) {
++
++		Font *font = (Font*)val_data (fontHandle);
++		return (value)font->GetKerning (leftIndex, rightIndex);
++
++	}
++
++
++	double lime_window_get_handle (value window) {
++
++		Window *targetWindow = (Window*)val_data (window);
++		return (double)(uintptr_t)targetWindow->GetHandle ();
++
++	}
++
++
++	bool lime_window_set_vsync_mode (value window, int mode) {
++
++		Window *targetWindow = (Window*)val_data (window);
++		return targetWindow->SetVSyncMode (mode);
++
++	}
++
++
++	bool lime_window_set_always_on_top (value window, bool alwaysOnTop) {
++
++		Window *targetWindow = (Window*)val_data (window);
++		return targetWindow->SetAlwaysOnTop (alwaysOnTop);
++
++	}
++
++
++	int lime_application_alert (value application, int type, HxString message, HxString title, value buttons) {
++
++		(void)application; (void)type; (void)buttons;
++		SDL_ShowSimpleMessageBox (SDL_MESSAGEBOX_INFORMATION, hxs_utf8 (title, nullptr), hxs_utf8 (message, nullptr), nullptr);
++		return 0;
++
++	}
++
++
++	value lime_touch_get_devices () {
++
++		int count = SDL_GetNumTouchDevices ();
++		value values = alloc_array (count);
++
++		for (int i = 0; i < count; i++) {
++
++			val_array_set_i (values, i, alloc_int ((int)SDL_GetTouchDevice (i)));
++
++		}
++
++		return values;
++
++	}
++
++
++	value lime_touch_get_device_name (int id) {
++
++		// SDL_GetTouchDeviceName is absent from the bundled SDL headers; return null.
++		return alloc_null ();
++
++	}
++
++
++	int lime_touch_get_device_type (int id) {
++
++		SDL_TouchDeviceType type = SDL_GetTouchDeviceType ((SDL_TouchID)id);
++
++		switch (type) {
++
++			case SDL_TOUCH_DEVICE_DIRECT: return 0;
++			case SDL_TOUCH_DEVICE_INDIRECT_ABSOLUTE: return 1;
++			case SDL_TOUCH_DEVICE_INDIRECT_RELATIVE: return 2;
++			default: return -1;
++
++		}
++
++	}
++
++
++	void lime_gamepad_set_led (int id, int red, int green, int blue) {
++
++		auto it = gameControllers.find (id);
++		if (it == gameControllers.end ()) return;
++		SDL_GameControllerSetLED (it->second, (Uint8)red, (Uint8)green, (Uint8)blue);
++
++	}
++
++
++	void lime_joystick_rumble (int id, double lowFrequencyRumble, double highFrequencyRumble, int duration) {
++
++		auto it = joysticks.find (id);
++		if (it == joysticks.end ()) return;
++
++		if (lowFrequencyRumble < 0.0) lowFrequencyRumble = 0.0;
++		else if (lowFrequencyRumble > 1.0) lowFrequencyRumble = 1.0;
++		if (highFrequencyRumble < 0.0) highFrequencyRumble = 0.0;
++		else if (highFrequencyRumble > 1.0) highFrequencyRumble = 1.0;
++
++		SDL_JoystickRumble (it->second, (Uint16)(lowFrequencyRumble * 0xFFFF), (Uint16)(highFrequencyRumble * 0xFFFF), duration);
++
++	}
++
++
++	void lime_joystick_set_led (int id, int red, int green, int blue) {
++
++		auto it = joysticks.find (id);
++		if (it == joysticks.end ()) return;
++		SDL_JoystickSetLED (it->second, (Uint8)red, (Uint8)green, (Uint8)blue);
++
++	}
++
++
++	void lime_gesture_event_manager_register (value callback, value eventObject) {
++
++		if (gestureCallback) delete gestureCallback;
++		if (gestureEventObject) delete gestureEventObject;
++		gestureCallback = new ValuePointer (callback);
++		gestureEventObject = new ValuePointer (eventObject);
++
++	}
++
++
+ 
+ 	void gc_application (value handle) {
+ 
+@@ -361,6 +632,36 @@ namespace lime {
+ 	}
+ 
+ 
++	void lime_application_set_render_frame_rate (value application, double frameRate) {
++
++		Application* app = (Application*)val_data (application);
++		app->SetRenderFrameRate (frameRate);
++
++	}
++
++
++	HL_PRIM void HL_NAME(hl_application_set_render_frame_rate) (HL_CFFIPointer* application, double frameRate) {
++
++		Application* app = (Application*)application->ptr;
++		app->SetRenderFrameRate (frameRate);
++
++	}
++
++	void lime_application_set_split_update (value application, bool split) {
++
++		Application* app = (Application*)val_data (application);
++		app->SetLockRender (split);
++
++	}
++
++
++	HL_PRIM void HL_NAME(hl_application_set_split_update) (HL_CFFIPointer* application, bool split) {
++
++		Application* app = (Application*)application->ptr;
++		app->SetLockRender (split);
++
++	}
++
+ 	bool lime_application_update (value application) {
+ 
+ 		Application* app = (Application*)val_data (application);
+@@ -1982,27 +2283,105 @@ namespace lime {
+ 	}
+ 
+ 
++	static int gMaxTextureSize = 0;
++
++
++	void lime_image_set_max_texture_size (int size) {
++
++		gMaxTextureSize = size;
++
++	}
++
++
++	HL_PRIM void HL_NAME(hl_image_set_max_texture_size) (int size) {
++
++		gMaxTextureSize = size;
++
++	}
++
++
+ 	value lime_image_load_file (value data, value buffer) {
+ 
+ 		Resource resource = Resource (val_string (data));
+ 		ImageBuffer imageBuffer = ImageBuffer (buffer);
++		bool decoded = false;
+ 
+ 		#ifdef LIME_PNG
+ 		if (PNG::Decode (&resource, &imageBuffer)) {
+ 
+-			return imageBuffer.Value (buffer);
++			decoded = true;
+ 
+ 		}
+ 		#endif
+ 
+ 		#ifdef LIME_JPEG
+-		if (JPEG::Decode (&resource, &imageBuffer)) {
++		if (!decoded && JPEG::Decode (&resource, &imageBuffer)) {
+ 
+-			return imageBuffer.Value (buffer);
++			decoded = true;
+ 
+ 		}
+ 		#endif
+ 
++		if (decoded) {
++
++			int maxTextureSize = gMaxTextureSize;
++
++			float scale = 1.0;
++
++			if (maxTextureSize > 0 && (imageBuffer.width > maxTextureSize || imageBuffer.height > maxTextureSize)) {
++
++				float scaleW = (imageBuffer.width > maxTextureSize) ? (float)maxTextureSize / imageBuffer.width : 1.0;
++				float scaleH = (imageBuffer.height > maxTextureSize) ? (float)maxTextureSize / imageBuffer.height : 1.0;
++
++				scale = (scaleW < scaleH) ? scaleW : scaleH;
++
++				int newWidth = (int)(imageBuffer.width * scale);
++				int newHeight = (int)(imageBuffer.height * scale);
++
++				Image* srcImage = new Image (alloc_empty_object ());
++				
++				srcImage->width = imageBuffer.width;
++				srcImage->height = imageBuffer.height;
++				
++				if (!srcImage->buffer) {
++					srcImage->buffer = new ImageBuffer (alloc_null ());
++				}
++				
++				srcImage->buffer->width = imageBuffer.width;
++				srcImage->buffer->height = imageBuffer.height;
++				srcImage->buffer->bitsPerPixel = imageBuffer.bitsPerPixel;
++				srcImage->buffer->format = imageBuffer.format;
++				srcImage->buffer->premultiplied = imageBuffer.premultiplied;
++				srcImage->buffer->transparent = imageBuffer.transparent;
++				
++				if (srcImage->buffer->data) {
++					delete srcImage->buffer->data;
++				}
++				srcImage->buffer->data = imageBuffer.data;
++				imageBuffer.data = 0;
++
++				ImageBuffer* destBuffer = new ImageBuffer (alloc_empty_object ());
++				destBuffer->Resize (newWidth, newHeight, imageBuffer.bitsPerPixel);
++
++				ImageDataUtil::Resize (srcImage, destBuffer, newWidth, newHeight);
++
++				imageBuffer.data = destBuffer->data;
++				destBuffer->data = 0;
++
++				imageBuffer.width = newWidth;
++				imageBuffer.height = newHeight;
++
++				delete destBuffer;
++				delete srcImage;
++
++			}
++
++			value ret = imageBuffer.Value (buffer);
++			alloc_field (ret, val_id ("graphicScale"), alloc_float (scale));
++			return ret;
++
++		}
++
+ 		return alloc_null ();
+ 
+ 	}
+@@ -3303,6 +3682,21 @@ namespace lime {
+ 	}
+ 
+ 
++	void lime_window_context_make_current_custom (value window, double context) {
++
++		((Window*)val_data (window))->ContextMakeCurrent ((void*)(uintptr_t)context);
++
++	}
++
++
++	double lime_window_context_create (value window) {
++
++		Window* windowObject = (Window*)val_data (window);
++		return (uintptr_t)windowObject->CreateContext ();
++
++	}
++
++
+ 	HL_PRIM void HL_NAME(hl_window_context_make_current) (HL_CFFIPointer* window) {
+ 
+ 		((Window*)window->ptr)->ContextMakeCurrent ();
+@@ -3310,6 +3704,20 @@ namespace lime {
+ 	}
+ 
+ 
++	HL_PRIM void HL_NAME(hl_window_context_make_current_custom) (HL_CFFIPointer* window, double context) {
++
++		((Window*)window->ptr)->ContextMakeCurrent ((void*)(uintptr_t)context);
++
++	}
++
++
++	HL_PRIM double HL_NAME(hl_window_context_create) (HL_CFFIPointer* window) {
++
++		return (uintptr_t)((Window*)window->ptr)->CreateContext ();
++
++	}
++
++
+ 	void lime_window_context_unlock (value window) {
+ 
+ 		((Window*)val_data (window))->ContextUnlock ();
+@@ -4027,6 +4435,8 @@ namespace lime {
+ 	DEFINE_PRIME1v (lime_application_init);
+ 	DEFINE_PRIME1 (lime_application_quit);
+ 	DEFINE_PRIME2v (lime_application_set_frame_rate);
++	DEFINE_PRIME2v (lime_application_set_render_frame_rate);
++	DEFINE_PRIME2v (lime_application_set_split_update);
+ 	DEFINE_PRIME1 (lime_application_update);
+ 	DEFINE_PRIME2 (lime_audio_load);
+ 	DEFINE_PRIME2 (lime_audio_load_bytes);
+@@ -4035,6 +4445,7 @@ namespace lime {
+ 	DEFINE_PRIME1 (lime_bytes_get_data_pointer);
+ 	DEFINE_PRIME2 (lime_bytes_get_data_pointer_offset);
+ 	DEFINE_PRIME2 (lime_bytes_read_file);
++	DEFINE_PRIME2v (lime_bytes_write_file);
+ 	DEFINE_PRIME1 (lime_cffi_get_native_pointer);
+ 	DEFINE_PRIME1 (lime_cffi_set_finalizer);
+ 	DEFINE_PRIME2v (lime_clipboard_event_manager_register);
+@@ -4053,6 +4464,8 @@ namespace lime {
+ 	DEFINE_PRIME2v (lime_file_watcher_remove_directory);
+ 	DEFINE_PRIME1v (lime_file_watcher_update);
+ 	DEFINE_PRIME1 (lime_font_get_ascender);
++	DEFINE_PRIME0v (lime_font_initialize_library);
++	DEFINE_PRIME0v (lime_font_shutdown_library);
+ 	DEFINE_PRIME1 (lime_font_get_descender);
+ 	DEFINE_PRIME1 (lime_font_get_family_name);
+ 	DEFINE_PRIME2 (lime_font_get_glyph_index);
+@@ -4097,6 +4510,7 @@ namespace lime {
+ 	DEFINE_PRIME2 (lime_image_load);
+ 	DEFINE_PRIME2 (lime_image_load_bytes);
+ 	DEFINE_PRIME2 (lime_image_load_file);
++	DEFINE_PRIME1v (lime_image_set_max_texture_size);
+ 	DEFINE_PRIME0 (lime_jni_getenv);
+ 	DEFINE_PRIME2v (lime_joystick_event_manager_register);
+ 	DEFINE_PRIME1 (lime_joystick_get_device_guid);
+@@ -4142,7 +4556,9 @@ namespace lime {
+ 	DEFINE_PRIME1v (lime_window_close);
+ 	DEFINE_PRIME1v (lime_window_context_flip);
+ 	DEFINE_PRIME1 (lime_window_context_lock);
++	DEFINE_PRIME1 (lime_window_context_create);
+ 	DEFINE_PRIME1v (lime_window_context_make_current);
++	DEFINE_PRIME2v (lime_window_context_make_current_custom);
+ 	DEFINE_PRIME1v (lime_window_context_unlock);
+ 	DEFINE_PRIME5 (lime_window_create);
+ 	DEFINE_PRIME2v (lime_window_event_manager_register);
+@@ -4180,6 +4596,26 @@ namespace lime {
+ 	DEFINE_PRIME3v (lime_window_warp_mouse);
+ 	DEFINE_PRIME1 (lime_window_get_opacity);
+ 	DEFINE_PRIME2v (lime_window_set_opacity);
++	DEFINE_PRIME1 (lime_system_get_hint);
++	DEFINE_PRIME2v (lime_system_set_hint);
++	DEFINE_PRIME0 (lime_system_get_theme);
++	DEFINE_PRIME0 (lime_system_get_preferred_locales);
++	DEFINE_PRIME0 (lime_system_get_first_gyroscope_sensor_id);
++	DEFINE_PRIME0 (lime_system_get_first_accelerometer_sensor_id);
++	DEFINE_PRIME3 (lime_font_get_glyph_kerning);
++	DEFINE_PRIME1 (lime_window_get_handle);
++	DEFINE_PRIME2 (lime_window_set_vsync_mode);
++	DEFINE_PRIME2 (lime_window_set_always_on_top);
++	DEFINE_PRIME5 (lime_application_alert);
++	DEFINE_PRIME0 (lime_touch_get_devices);
++	DEFINE_PRIME1 (lime_touch_get_device_name);
++	DEFINE_PRIME1 (lime_touch_get_device_type);
++	DEFINE_PRIME4v (lime_gamepad_set_led);
++	DEFINE_PRIME4v (lime_joystick_rumble);
++	DEFINE_PRIME4v (lime_joystick_set_led);
++	DEFINE_PRIME2v (lime_gesture_event_manager_register);
++
++
+ 	DEFINE_PRIME2 (lime_zlib_compress);
+ 	DEFINE_PRIME2 (lime_zlib_decompress);
+ 
+@@ -4222,6 +4658,8 @@ namespace lime {
+ 	DEFINE_HL_PRIM (_VOID, hl_application_init, _TCFFIPOINTER);
+ 	DEFINE_HL_PRIM (_I32, hl_application_quit, _TCFFIPOINTER);
+ 	DEFINE_HL_PRIM (_VOID, hl_application_set_frame_rate, _TCFFIPOINTER _F64);
++	DEFINE_HL_PRIM (_VOID, hl_application_set_render_frame_rate, _TCFFIPOINTER _F64);
++	DEFINE_HL_PRIM (_VOID, hl_application_set_split_update, _TCFFIPOINTER _BOOL);
+ 	DEFINE_HL_PRIM (_BOOL, hl_application_update, _TCFFIPOINTER);
+ 	DEFINE_HL_PRIM (_TAUDIOBUFFER, hl_audio_load_bytes, _TBYTES _TAUDIOBUFFER);
+ 	DEFINE_HL_PRIM (_TAUDIOBUFFER, hl_audio_load_file, _STRING _TAUDIOBUFFER);
+@@ -4229,6 +4667,7 @@ namespace lime {
+ 	DEFINE_HL_PRIM (_F64, hl_bytes_get_data_pointer, _TBYTES);
+ 	DEFINE_HL_PRIM (_F64, hl_bytes_get_data_pointer_offset, _TBYTES _I32);
+ 	DEFINE_HL_PRIM (_TBYTES, hl_bytes_read_file, _STRING _TBYTES);
++	DEFINE_HL_PRIM (_VOID, hl_bytes_write_file, _STRING _TBYTES);
+ 	DEFINE_HL_PRIM (_F64, hl_cffi_get_native_pointer, _TCFFIPOINTER);
+ 	// DEFINE_PRIME1 (lime_cffi_set_finalizer);
+ 	DEFINE_HL_PRIM (_VOID, hl_clipboard_event_manager_register, _FUN(_VOID, _NO_ARG) _TCLIPBOARD_EVENT);
+@@ -4247,6 +4686,8 @@ namespace lime {
+ 	DEFINE_HL_PRIM (_VOID, hl_file_watcher_remove_directory, _TCFFIPOINTER _I32);
+ 	DEFINE_HL_PRIM (_VOID, hl_file_watcher_update, _TCFFIPOINTER);
+ 	DEFINE_HL_PRIM (_I32, hl_font_get_ascender, _TCFFIPOINTER);
++	DEFINE_HL_PRIM (_VOID, hl_font_initialize_library, _NO_ARG);
++	DEFINE_HL_PRIM (_VOID, hl_font_shutdown_library, _NO_ARG);
+ 	DEFINE_HL_PRIM (_I32, hl_font_get_descender, _TCFFIPOINTER);
+ 	DEFINE_HL_PRIM (_BYTES, hl_font_get_family_name, _TCFFIPOINTER);
+ 	DEFINE_HL_PRIM (_I32, hl_font_get_glyph_index, _TCFFIPOINTER _STRING);
+@@ -4291,6 +4732,7 @@ namespace lime {
+ 	// DEFINE_PRIME2 (lime_image_load);
+ 	DEFINE_HL_PRIM (_TIMAGEBUFFER, hl_image_load_bytes, _TBYTES _TIMAGEBUFFER);
+ 	DEFINE_HL_PRIM (_TIMAGEBUFFER, hl_image_load_file, _STRING _TIMAGEBUFFER);
++	DEFINE_HL_PRIM (_VOID, hl_image_set_max_texture_size, _I32);
+ 	DEFINE_HL_PRIM (_F64, hl_jni_getenv, _NO_ARG);
+ 	DEFINE_HL_PRIM (_VOID, hl_joystick_event_manager_register, _FUN(_VOID, _NO_ARG) _TJOYSTICK_EVENT);
+ 	DEFINE_HL_PRIM (_BYTES, hl_joystick_get_device_guid, _I32);
+@@ -4336,7 +4778,9 @@ namespace lime {
+ 	DEFINE_HL_PRIM (_VOID, hl_window_close, _TCFFIPOINTER);
+ 	DEFINE_HL_PRIM (_VOID, hl_window_context_flip, _TCFFIPOINTER);
+ 	DEFINE_HL_PRIM (_DYN, hl_window_context_lock, _TCFFIPOINTER);
++	DEFINE_HL_PRIM (_F64, hl_window_context_create, _TCFFIPOINTER);
+ 	DEFINE_HL_PRIM (_VOID, hl_window_context_make_current, _TCFFIPOINTER);
++	DEFINE_HL_PRIM (_VOID, hl_window_context_make_current_custom, _TCFFIPOINTER _F64);
+ 	DEFINE_HL_PRIM (_VOID, hl_window_context_unlock, _TCFFIPOINTER);
+ 	DEFINE_HL_PRIM (_TCFFIPOINTER, hl_window_create, _TCFFIPOINTER _I32 _I32 _I32 _STRING);
+ 	DEFINE_HL_PRIM (_VOID, hl_window_event_manager_register, _FUN (_VOID, _NO_ARG) _TWINDOW_EVENT);
+@@ -4378,6 +4822,55 @@ namespace lime {
+ 	DEFINE_HL_PRIM (_TBYTES, hl_zlib_decompress, _TBYTES _TBYTES);
+ 
+ 
++	void lime_backend_thread_start () {
++		BackendThread::GetInstance()->Start();
++	}
++	HL_PRIM void HL_NAME(hl_backend_thread_start) () {
++		BackendThread::GetInstance()->Start();
++	}
++
++	void lime_backend_thread_stop () {
++		BackendThread::GetInstance()->Stop();
++	}
++	HL_PRIM void HL_NAME(hl_backend_thread_stop) () {
++		BackendThread::GetInstance()->Stop();
++	}
++
++	void lime_backend_thread_run (value callback) {
++		ValuePointer* ptr = new ValuePointer (callback);
++		BackendThread::GetInstance()->Push([ptr](){
++			int base = 0;
++			gc_set_top_of_stack (&base, true);
++			ptr->Call ();
++			gc_set_top_of_stack (0, true);
++			delete ptr;
++		});
++	}
++	HL_PRIM void HL_NAME(hl_backend_thread_run) (vclosure* callback) {
++		ValuePointer* ptr = new ValuePointer (callback);
++		BackendThread::GetInstance()->Push([ptr](){
++			int base = 0;
++			hl_register_thread (&base);
++			ptr->Call ();
++			hl_unregister_thread ();
++			delete ptr;
++		});
++	}
++
++	DEFINE_PRIME0v (lime_backend_thread_start);
++	DEFINE_PRIME0v (lime_backend_thread_stop);
++	DEFINE_PRIME1v (lime_backend_thread_run);
++
++	DEFINE_HL_PRIM (_VOID, hl_backend_thread_start, _NO_ARG);
++	DEFINE_HL_PRIM (_VOID, hl_backend_thread_stop, _NO_ARG);
++	DEFINE_HL_PRIM (_VOID, hl_backend_thread_run, _FUN(_VOID, _NO_ARG));
++
++
++}
++
++
++extern "C" int lime_backend_thread_register_prims () {
++	return 0;
+ }
+ 
+ 
+@@ -4420,6 +4913,7 @@ extern "C" int lime_vorbis_register_prims () { return 0; }
+ 
+ extern "C" int lime_register_prims () {
+ 
++	lime_backend_thread_register_prims ();
+ 	lime_cairo_register_prims ();
+ 	lime_curl_register_prims ();
+ 	lime_harfbuzz_register_prims ();

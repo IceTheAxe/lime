@@ -1,14 +1,17 @@
 name: CI
 on:
   push:
-    # `haxelib` is a generated library branch (see publish-haxelib-branch).
-    # Pushing to it must not retrigger the build, or CI would loop forever.
+    # `haxelib` (FE) and `nf-haxelib` (NF) are generated library branches
+    # (see publish-haxelib-branch). Pushing to them must not retrigger the
+    # build, or CI would loop forever.
     branches-ignore:
       - haxelib
+      - nf-haxelib
   pull_request:
 
 env:
-  HAXE_VERSION: 4.2.5
+  # NF targets Haxe 4.3.7 only (2026-11-15 decision; FE's 4.2.5 compat pin not carried)
+  HAXE_VERSION: 4.3.7
   HXCPP_COMPILE_CACHE: ${{ github.workspace }}/.hxcpp_cache
   HXCPP_NONINTERACTIVE: 1
 
@@ -1303,12 +1306,14 @@ jobs:
   publish-haxelib-branch:
     name: Publish lime haxelib branch
     needs: [package-haxelib]
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' }}
+    # FE develop publishes to `haxelib`; the NF port branch publishes to
+    # `nf-haxelib` so the two library branches never clobber each other.
+    if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/NF-Lime-8.4.0') }}
     runs-on: ubuntu-22.04
     permissions:
       contents: write
     env:
-      LIB_BRANCH: haxelib
+      LIB_BRANCH: ${{ github.ref == 'refs/heads/develop' && 'haxelib' || 'nf-haxelib' }}
     steps:
 
       - name: Download packaged haxelib

@@ -1,6 +1,6 @@
 {
 	"name": "lime",
-	"url": "https://github.com/openfl/lime",
+	"url": "https://github.com/IceTheAxe/lime",
 	"license": "MIT",
 	"tags": [],
 	"description": "A foundational Haxe framework for cross-platform development",
@@ -11,5 +11,11 @@
 		"bowlerhat",
 		"Dimensionscape"
 	],
+	"dependencies": {
+		"native-desktop": "1.1.0",
+		"native-ipc": "1.0.0",
+		"StageWebView": "1.0.1",
+		"wsproto": "1.0.0"
+	},
 	"classPath": "src"
 }

@@ -366,7 +366,9 @@ public static function captureCloseDevice(device:ALDevice):Bool
 		#else
 		return result;
 		#end
+		#else
 		return null;
+		#end
 	}
 }
 #end

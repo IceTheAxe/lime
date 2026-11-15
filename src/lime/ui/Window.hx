@@ -167,6 +167,10 @@ class Window
 	public var onClose(default, null) = new Event<Void->Void>();
 	public var onDeactivate(default, null) = new Event<Void->Void>();
 	public var onDropFile(default, null) = new lime._internal.compat.DropFileEvent();
+	public var onDropText(default, null) = new Event<String->String->Float->Float->Void>();
+	public var onDropBegin(default, null) = new Event<Void->Void>();
+	public var onDropComplete(default, null) = new Event<Float->Float->Void>();
+	public var onDropPosition(default, null) = new Event<Float->Float->Void>();
 	public var onEnter(default, null) = new Event<Void->Void>();
 	public var onExpose(default, null) = new Event<Void->Void>();
 	public var onFocusIn(default, null) = new Event<Void->Void>();
@@ -183,6 +187,8 @@ class Window
 		Fired when the user releases a key that was down.
 	**/
 	public var onKeyUp(default, null) = new Event<KeyCode->KeyModifier->Void>();
+	public var onKeyDownPrecise(default, null) = new Event<KeyCode->KeyModifier->haxe.Int64->Void>();
+	public var onKeyUpPrecise(default, null) = new Event<KeyCode->KeyModifier->haxe.Int64->Void>();
 
 	public var onLeave(default, null) = new Event<Void->Void>();
 

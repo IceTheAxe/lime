@@ -218,7 +218,7 @@ class NativeCFFI
 	@:cffi private static function lime_font_set_stem_darkening_parameters(handle:Dynamic, params:Array<Int>):Void;
 
 	@:cffi private static function lime_gamepad_add_mappings(mappings:Dynamic):Void;
-	@:cffi private static function lime_gamepad_set_led(id:Int, red:Int, green:Int, blue:Int):Void;
+	@:cffi private static function lime_gamepad_set_led(id:Int, red:Int, green:Int, blue:Int):Bool;
 
 	@:cffi private static function lime_gamepad_get_device_guid(id:Int):Dynamic;
 
@@ -1078,7 +1078,7 @@ class NativeCFFI
 	private static var lime_font_set_stem_darkening_parameters = new cpp.Callable<cpp.Object->cpp.Object->cpp.Void>(cpp.Prime._loadPrime("lime", "lime_font_set_stem_darkening_parameters", "oov", false));
 	private static var lime_gamepad_add_mappings = new cpp.Callable<cpp.Object->cpp.Void>(cpp.Prime._loadPrime("lime", "lime_gamepad_add_mappings", "ov",
 		false));
-	private static var lime_gamepad_set_led = new cpp.Callable<Int->Int->Int->Int->cpp.Void>(cpp.Prime._loadPrime("lime", "lime_gamepad_set_led", "iiiiv", false));
+	private static var lime_gamepad_set_led = new cpp.Callable<Int->Int->Int->Int->Bool>(cpp.Prime._loadPrime("lime", "lime_gamepad_set_led", "iiiib", false));
 	private static var lime_gamepad_get_device_guid = new cpp.Callable<Int->cpp.Object>(cpp.Prime._loadPrime("lime", "lime_gamepad_get_device_guid", "io",
 		false));
 	private static var lime_gamepad_get_device_name = new cpp.Callable<Int->cpp.Object>(cpp.Prime._loadPrime("lime", "lime_gamepad_get_device_name", "io",

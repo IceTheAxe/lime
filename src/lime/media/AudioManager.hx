@@ -653,6 +653,35 @@ class AudioManager
 		#end
 	}
 
+	@:noCompletion private static function __refresh():Void
+	{
+		if (context == null || context.type != OPENAL) return;
+
+		var currentContext = ALC.getCurrentContext();
+		if (currentContext == null) return;
+
+		var device = ALC.getContextsDevice(currentContext);
+		if (device == null) return;
+
+		__effectExtSupported = ALC.isExtensionPresent(null, "ALC_EXT_EFX");
+		__captureExtSupported = ALC.isExtensionPresent(null, 'ALC_EXT_CAPTURE');
+		__disconnectExtSupported = ALC.isExtensionPresent(null, 'ALC_EXT_disconnect');
+		__deviceClockSupported = ALC.isExtensionPresent(null, 'ALC_SOFT_device_clock');
+		__reopenDeviceSupported = ALC.isExtensionPresent(null, 'ALC_SOFT_reopen_device');
+		__systemEventsSupported = ALC.isExtensionPresent(null, 'ALC_SOFT_system_events');
+		__enumerateAllSupported = ALC.isExtensionPresent(null, 'ALC_ENUMERATE_ALL_EXT');
+
+		__latencyExtSupported = AL.isExtensionPresent('AL_SOFT_source_latency');
+		__directChannelsExtSupported = AL.isExtensionPresent('AL_SOFT_direct_channels') && AL.isExtensionPresent('AL_SOFT_direct_channels_remix');
+		__loopPointsSupported = AL.isExtensionPresent('AL_SOFT_loop_points');
+		__moreFormatsSupported = AL.isExtensionPresent('AL_EXT_MCFORMATS');
+		__spatializeSupported = AL.isExtensionPresent('AL_SOFT_source_spatialize');
+		__stereoAnglesSupported = AL.isExtensionPresent('AL_EXT_STEREO_ANGLES');
+
+		gain = __gain;
+		AL.distanceModel(AL.NONE);
+	}
+
 	@:noCompletion private static function __formatDeviceName(deviceName:String)
 	{
 		if (StringTools.startsWith(deviceName, 'OpenAL Soft on ')) return deviceName.substr(15);

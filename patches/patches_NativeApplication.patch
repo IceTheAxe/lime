@@ -1,0 +1,161 @@
+diff --git a/src/lime/_internal/backend/native/NativeApplication.hx b/src/lime/_internal/backend/native/NativeApplication.hx
+index a0d7155d6..a9370a3ae 100644
+--- a/src/lime/_internal/backend/native/NativeApplication.hx
++++ b/src/lime/_internal/backend/native/NativeApplication.hx
+@@ -191,6 +191,13 @@ class NativeApplication
+ 		#end
+ 	}
+ 
++	public function setRenderFrameRate(frameRate:Float):Void
++	{
++		#if (!macro && lime_cffi)
++		NativeCFFI.lime_application_set_render_frame_rate(handle, frameRate);
++		#end
++	}
++
+ 	private function handleApplicationEvent():Void
+ 	{
+ 		switch (applicationEventInfo.type)
+@@ -217,6 +224,7 @@ class NativeApplication
+ 		}
+ 	}
+ 
++
+ 	private function handleGamepadEvent():Void
+ 	{
+ 		switch (gamepadEventInfo.type)
+@@ -339,10 +347,11 @@ class NativeApplication
+ 			#elseif android
+ 			if (keyCode == APP_CONTROL_BACK && modifier == KeyModifier.NONE && type == KEY_UP && !window.onKeyUp.canceled)
+ 			{
+-				var mainActivity = JNI.createStaticField("org/haxe/extension/Extension", "mainActivity", "Landroid/app/Activity;");
++				// 屏蔽掉 Lime 默认的退回桌面行为
++				/*var mainActivity = JNI.createStaticField("org/haxe/extension/Extension", "mainActivity", "Landroid/app/Activity;");
+ 				var moveTaskToBack = JNI.createMemberMethod("android/app/Activity", "moveTaskToBack", "(Z)Z");
+ 
+-				moveTaskToBack(mainActivity.get(), true);
++				moveTaskToBack(mainActivity.get(), true);*/
+ 			}
+ 			#end
+ 		}
+@@ -422,6 +431,12 @@ class NativeApplication
+ 							window.__backend.contextFlip();
+ 						}
+ 					}
++				
++				case RENDER_UPDATE:
++					if (window.context != null)
++					{
++						window.onlyUpdate.dispatch();
++					}
+ 
+ 				case RENDER_CONTEXT_LOST:
+ 					if (window.__backend.useHardware && window.context != null)
+@@ -445,8 +460,10 @@ class NativeApplication
+ 				case RENDER_CONTEXT_RESTORED:
+ 					if (window.__backend.useHardware)
+ 					{
+-						// GL.context = new OpenGLRenderContext ();
+-						// window.context.gl = GL.context;
++						if (window.context == null)
++						{
++							window.__backend.restoreContext();
++						}
+ 
+ 						window.onRenderContextRestored.dispatch(window.context);
+ 					}
+@@ -454,6 +471,8 @@ class NativeApplication
+ 		}
+ 	}
+ 
++	private var forceDrawOnce:Bool = false;
++
+ 	private function handleSensorEvent():Void
+ 	{
+ 		var sensor = Sensor.sensorByID.get(sensorEventInfo.id);
+@@ -554,6 +573,7 @@ class NativeApplication
+ 			switch (windowEventInfo.type)
+ 			{
+ 				case WINDOW_ACTIVATE:
++					forceDrawOnce = true;
+ 					advanceTimer();
+ 					window.onActivate.dispatch();
+ 					AudioManager.resume();
+@@ -564,12 +584,14 @@ class NativeApplication
+ 				case WINDOW_DEACTIVATE:
+ 					window.onDeactivate.dispatch();
+ 					AudioManager.suspend();
++
+ 					pauseTimer = System.getTimer();
+ 
+ 				case WINDOW_ENTER:
+ 					window.onEnter.dispatch();
+ 
+ 				case WINDOW_EXPOSE:
++					forceDrawOnce = true;
+ 					window.onExpose.dispatch();
+ 
+ 				case WINDOW_FOCUS_IN:
+@@ -663,14 +685,15 @@ class NativeApplication
+ 		#end
+ 		#end
+ 	}
++
+ }
+ 
+ @:keep /*private*/ class ApplicationEventInfo
+ {
+-	public var deltaTime:Int;
++	public var deltaTime:Float;
+ 	public var type:ApplicationEventType;
+ 
+-	public function new(type:ApplicationEventType = null, deltaTime:Int = 0)
++	public function new(type:ApplicationEventType = null, deltaTime:Float = 0)
+ 	{
+ 		this.type = type;
+ 		this.deltaTime = deltaTime;
+@@ -723,11 +746,18 @@ class NativeApplication
+ 	{
+ 		return new DropEventInfo(type, file);
+ 	}
++
++	public var windowID:Int=0;
++	public var x:Float=0;
++	public var y:Float=0;
+ }
+ 
+ #if (haxe_ver >= 4.0) private enum #else @:enum private #end abstract DropEventType(Int)
+ {
+ 	var DROP_FILE = 0;
++	var DROP_TEXT = 1;
++	var DROP_BEGIN = 2;
++	var DROP_COMPLETE = 3;
+ }
+ 
+ @:keep /*private*/ class GamepadEventInfo
+@@ -751,6 +781,8 @@ class NativeApplication
+ 	{
+ 		return new GamepadEventInfo(type, id, button, axis, axisValue);
+ 	}
++
++	public var timestamp:Float = 0;
+ }
+ 
+ #if (haxe_ver >= 4.0) private enum #else @:enum private #end abstract GamepadEventType(Int)
+@@ -816,6 +848,8 @@ class NativeApplication
+ 	{
+ 		return new KeyEventInfo(type, windowID, keyCode, modifier);
+ 	}
++
++	public var timestamp:Float = 0;
+ }
+ 
+ #if (haxe_ver >= 4.0) private enum #else @:enum private #end abstract KeyEventType(Int)
+@@ -882,6 +916,7 @@ class NativeApplication
+ 	var RENDER = 0;
+ 	var RENDER_CONTEXT_LOST = 1;
+ 	var RENDER_CONTEXT_RESTORED = 2;
++	var RENDER_UPDATE = 3;
+ }
+ 
+ @:keep /*private*/ class SensorEventInfo

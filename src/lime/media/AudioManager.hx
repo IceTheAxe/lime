@@ -1,5 +1,6 @@
 package lime.media;
 import haxe.Timer;
+import lime.app.Event;
 #if (lime_cffi && !macro && lime_openal)
 import lime._internal.backend.native.NativeCFFI;
 import lime._internal.backend.native.NativeAudioSource;

@@ -1,0 +1,22 @@
+diff --git a/src/lime/ui/Gamepad.hx b/src/lime/ui/Gamepad.hx
+index 19017ead1..e0a7f98a4 100644
+--- a/src/lime/ui/Gamepad.hx
++++ b/src/lime/ui/Gamepad.hx
+@@ -127,4 +127,17 @@ class Gamepad
+ 		return null;
+ 		#end
+ 	}
++
++	public function setLED(red:Int, green:Int, blue:Int):Void
++	{
++		#if (lime_cffi && !macro)
++		NativeCFFI.lime_gamepad_set_led(this.id, red, green, blue);
++		#end
++	}
++
++	public var onAxisMovePrecise = new Event<GamepadAxis->Float->haxe.Int64->Void>();
++
++	public var onButtonDownPrecise = new Event<GamepadButton->haxe.Int64->Void>();
++
++	public var onButtonUpPrecise = new Event<GamepadButton->haxe.Int64->Void>();
+ }

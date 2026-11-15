@@ -1,0 +1,14 @@
+diff --git a/project/include/graphics/RenderEvent.h b/project/include/graphics/RenderEvent.h
+index 22c4f4d60..8117e8e47 100644
+--- a/project/include/graphics/RenderEvent.h
++++ b/project/include/graphics/RenderEvent.h
+@@ -13,7 +13,8 @@ namespace lime {
+ 
+ 		RENDER,
+ 		RENDER_CONTEXT_LOST,
+-		RENDER_CONTEXT_RESTORED
++		RENDER_CONTEXT_RESTORED,
++		RENDER_UPDATE
+ 
+ 	};
+ 

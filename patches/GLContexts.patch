@@ -1,0 +1,88 @@
+diff --git a/src/lime/_internal/backend/native/NativeOpenGLRenderContext.hx b/src/lime/_internal/backend/native/NativeOpenGLRenderContext.hx
+index 68a8e512e..0ccf1588f 100644
+--- a/src/lime/_internal/backend/native/NativeOpenGLRenderContext.hx
++++ b/src/lime/_internal/backend/native/NativeOpenGLRenderContext.hx
+@@ -2559,6 +2559,13 @@ class NativeOpenGLRenderContext
+ 		return false;
+ 		#end
+ 	}
++	
++	public function setMultiThreaded(enabled:Bool):Void
++	{
++		#if (lime_cffi && (lime_opengl || lime_opengles) && !macro)
++		NativeCFFI.lime_gl_set_multithreaded(enabled);
++		#end
++	}
+ 
+ 	public function isShader(shader:GLShader):Bool
+ 	{
+@@ -3395,4 +3402,11 @@ class NativeOpenGLRenderContext
+ 
+ 		__initialized = true;
+ 	}
++
++	public function blendBarrier():Void
++	{
++		#if (lime_cffi && (lime_opengl || lime_opengles) && !macro)
++		NativeCFFI.lime_gl_blend_barrier();
++		#end
++	}
+ }
+diff --git a/src/lime/graphics/OpenGLES3RenderContext.hx b/src/lime/graphics/OpenGLES3RenderContext.hx
+index 8c0c21ae7..fb4985cee 100644
+--- a/src/lime/graphics/OpenGLES3RenderContext.hx
++++ b/src/lime/graphics/OpenGLES3RenderContext.hx
+@@ -4894,6 +4894,11 @@ abstract OpenGLES3RenderContext(Dynamic) from Dynamic to Dynamic
+ 	{
+ 		return null;
+ 	}
++
++public inline function blendBarrier():Void
++{
++	this.blendBarrier();
++}
+ }
+ #end
+ #end
+diff --git a/src/lime/graphics/WebGL2RenderContext.hx b/src/lime/graphics/WebGL2RenderContext.hx
+index 3fdc91364..02c0f4a95 100644
+--- a/src/lime/graphics/WebGL2RenderContext.hx
++++ b/src/lime/graphics/WebGL2RenderContext.hx
+@@ -263,6 +263,8 @@ abstract WebGL2RenderContext(HTML5WebGL2RenderContext) from HTML5WebGL2RenderCon
+ 	{
+ 		return cast gl;
+ 	}
++
++	public inline function blendBarrier():Void {}
+ }
+ #elseif (!lime_doc_gen || lime_opengl || lime_opengles || lime_webgl)
+ import haxe.Int64;
+@@ -5016,5 +5018,10 @@ abstract WebGL2RenderContext(Dynamic) from Dynamic to Dynamic
+ 	{
+ 		return cast GL.context;
+ 	}
++
++	public inline function blendBarrier():Void
++	{
++		this.blendBarrier();
++	}
+ }
+ #end
+diff --git a/src/lime/graphics/WebGLRenderContext.hx b/src/lime/graphics/WebGLRenderContext.hx
+index aa7b27665..f3ed1fb5a 100644
+--- a/src/lime/graphics/WebGLRenderContext.hx
++++ b/src/lime/graphics/WebGLRenderContext.hx
+@@ -204,5 +204,13 @@ abstract WebGLRenderContext(WebGL2RenderContext)
+ 		#end
+ 	}
+ 	#end
++
++	public inline function blendBarrier():Void
++	{
++		// Not supported on Web
++		#if !lime_webgl
++		this.blendBarrier();
++		#end
++	}
+ }
+ #end

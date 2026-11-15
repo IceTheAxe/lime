@@ -1,0 +1,21 @@
+{
+	"name": "lime",
+	"url": "https://github.com/IceTheAxe/lime",
+	"license": "MIT",
+	"tags": [],
+	"description": "A foundational Haxe framework for cross-platform development",
+	"version": "8.4.0",
+	"releasenote": "NovaFlare NF compatibility port on upstream 8.4.0 base (rebase migration in progress)",
+	"contributors": [
+		"singmajesty",
+		"bowlerhat",
+		"Dimensionscape"
+	],
+	"dependencies": {
+		"native-desktop": "1.1.0",
+		"native-ipc": "1.0.0",
+		"StageWebView": "1.0.1",
+		"wsproto": "1.0.0"
+	},
+	"classPath": "src"
+}

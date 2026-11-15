@@ -1,0 +1,82 @@
+diff --git a/project/include/text/Font.h b/project/include/text/Font.h
+index 2433eb4bb..4a2787b8b 100644
+--- a/project/include/text/Font.h
++++ b/project/include/text/Font.h
+@@ -52,6 +52,8 @@ namespace lime {
+ 			int GetGlyphIndex (const char* character);
+ 			void* GetGlyphIndices (bool useCFFIValue, const char* characters);
+ 			void* GetGlyphMetrics (bool useCFFIValue, int index);
++
++			void* GetKerning (int leftIndex, int rightIndex);
+ 			int GetHeight ();
+ 			int GetNumGlyphs ();
+ 			int GetUnderlinePosition ();
+diff --git a/project/src/text/Font.cpp b/project/src/text/Font.cpp
+index ccba351f3..0627e7d1d 100644
+--- a/project/src/text/Font.cpp
++++ b/project/src/text/Font.cpp
+@@ -1160,7 +1160,26 @@ namespace lime {
+ 	}
+ 
+ 
+-	int Font::GetHeight () {
++	
++	void* Font::GetKerning (int leftIndex, int rightIndex) {
++
++		FT_Vector kerning;
++
++		if (FT_Get_Kerning ((FT_Face)face, leftIndex, rightIndex, FT_KERNING_DEFAULT, &kerning) == 0) {
++
++			value metrics = alloc_empty_object ();
++			alloc_field (metrics, val_id ("x"), alloc_int (kerning.x));
++			alloc_field (metrics, val_id ("y"), alloc_int (kerning.y));
++			return metrics;
++
++		}
++
++		return alloc_null ();
++
++	}
++
++
++int Font::GetHeight () {
+ 
+ 		#ifdef LIME_FREETYPE_SWF_METRICS
+ 
+diff --git a/project/src/text/harfbuzz/HarfbuzzBindings.cpp b/project/src/text/harfbuzz/HarfbuzzBindings.cpp
+index 2b0f3b757..0bf4ca721 100644
+--- a/project/src/text/harfbuzz/HarfbuzzBindings.cpp
++++ b/project/src/text/harfbuzz/HarfbuzzBindings.cpp
+@@ -1556,6 +1556,16 @@ namespace lime {
+ 	}
+ 
+ 
++	void lime_hb_ft_font_changed (value font) {
++		hb_ft_font_changed ((hb_font_t*)val_data (font));
++	}
++
++
++	HL_PRIM void HL_NAME(hl_hb_ft_font_changed) (HL_CFFIPointer* font) {
++		if (font && font->ptr) hb_ft_font_changed ((hb_font_t*)font->ptr);
++	}
++
++
+ 	int lime_hb_ft_font_get_load_flags (value font) {
+ 
+ 		return hb_ft_font_get_load_flags ((hb_font_t*)val_data (font));
+@@ -2158,6 +2168,7 @@ namespace lime {
+ 	DEFINE_PRIME5v (lime_hb_font_subtract_glyph_origin_for_direction);
+ 	DEFINE_PRIME1 (lime_hb_ft_font_create);
+ 	DEFINE_PRIME1 (lime_hb_ft_font_create_referenced);
++	DEFINE_PRIME1v (lime_hb_ft_font_changed);
+ 	DEFINE_PRIME1 (lime_hb_ft_font_get_load_flags);
+ 	DEFINE_PRIME2v (lime_hb_ft_font_set_load_flags);
+ 	DEFINE_PRIME1 (lime_hb_language_from_string);
+@@ -2276,6 +2287,7 @@ namespace lime {
+ 	DEFINE_HL_PRIM (_VOID, hl_hb_font_subtract_glyph_origin_for_direction, _TCFFIPOINTER _I32 _I32 _I32 _I32);
+ 	DEFINE_HL_PRIM (_TCFFIPOINTER, hl_hb_ft_font_create, _TCFFIPOINTER);
+ 	DEFINE_HL_PRIM (_TCFFIPOINTER, hl_hb_ft_font_create_referenced, _TCFFIPOINTER);
++	DEFINE_HL_PRIM (_VOID, hl_hb_ft_font_changed, _TCFFIPOINTER);
+ 	DEFINE_HL_PRIM (_I32, hl_hb_ft_font_get_load_flags, _TCFFIPOINTER);
+ 	DEFINE_HL_PRIM (_VOID, hl_hb_ft_font_set_load_flags, _TCFFIPOINTER _I32);
+ 	DEFINE_HL_PRIM (_TCFFIPOINTER, hl_hb_language_from_string, _STRING);

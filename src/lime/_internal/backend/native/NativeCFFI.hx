@@ -236,7 +236,6 @@ class NativeCFFI
 
 	@:cffi private static function lime_gamepad_rumble_triggers(id:Int, leftRumble:Float, rightRumble:Float, duration:Int):Bool;
 
-	@:cffi private static function lime_gamepad_set_led(id:Int, red:Int, green:Int, blue:Int):Bool;
 
 	@:cffi private static function lime_gamepad_set_sensor_enabled(id:Int, sensor:Int, enabled:Bool):Bool;
 
@@ -931,7 +930,6 @@ class NativeCFFI
 
 	@:cffi private static function lime_window_set_visible(handle:Dynamic, visible:Bool):Bool;
 
-	@:cffi private static function lime_window_set_always_on_top(handle:Dynamic, alwaysOnTop:Bool):Bool;
 
 	@:cffi private static function lime_window_warp_mouse(handle:Dynamic, x:Int, y:Int):Void;
 
@@ -1092,7 +1090,6 @@ class NativeCFFI
 	private static var lime_gamepad_has_sensor = new cpp.Callable<Int->Int->Bool>(cpp.Prime._loadPrime("lime", "lime_gamepad_has_sensor", "iib", false));
 	private static var lime_gamepad_rumble_triggers = new cpp.Callable<Int->Float->Float->Int->Bool>(cpp.Prime._loadPrime("lime",
 		"lime_gamepad_rumble_triggers", "iddib", false));
-	private static var lime_gamepad_set_led = new cpp.Callable<Int->Int->Int->Int->Bool>(cpp.Prime._loadPrime("lime", "lime_gamepad_set_led", "iiiib", false));
 	private static var lime_gamepad_set_sensor_enabled = new cpp.Callable<Int->Int->Bool->Bool>(cpp.Prime._loadPrime("lime",
 		"lime_gamepad_set_sensor_enabled", "iibb", false));
 	private static var lime_gamepad_attach_virtual = new cpp.Callable<Void->Int>(cpp.Prime._loadPrime("lime", "lime_gamepad_attach_virtual", "i", false));
@@ -1617,7 +1614,6 @@ class NativeCFFI
 		false));
 	private static var lime_window_set_visible = new cpp.Callable<cpp.Object->Bool->Bool>(cpp.Prime._loadPrime("lime", "lime_window_set_visible", "obb",
 		false));
-	private static var lime_window_set_always_on_top = new cpp.Callable<cpp.Object->Bool->Bool>(cpp.Prime._loadPrime("lime", "lime_window_set_always_on_top",
 		"obb", false));
 	private static var lime_window_warp_mouse = new cpp.Callable<cpp.Object->Int->Int->cpp.Object>(cpp.Prime._loadPrime("lime", "lime_window_warp_mouse",
 		"oiiv", false));
@@ -1724,7 +1720,6 @@ class NativeCFFI
 	private static var lime_gamepad_has_rumble_triggers = CFFI.load("lime", "lime_gamepad_has_rumble_triggers", 1);
 	private static var lime_gamepad_has_sensor = CFFI.load("lime", "lime_gamepad_has_sensor", 2);
 	private static var lime_gamepad_rumble_triggers = CFFI.load("lime", "lime_gamepad_rumble_triggers", 4);
-	private static var lime_gamepad_set_led = CFFI.load("lime", "lime_gamepad_set_led", 4);
 	private static var lime_gamepad_set_sensor_enabled = CFFI.load("lime", "lime_gamepad_set_sensor_enabled", 3);
 	private static var lime_gamepad_attach_virtual = CFFI.load("lime", "lime_gamepad_attach_virtual", 0);
 	private static var lime_gamepad_detach_virtual = CFFI.load("lime", "lime_gamepad_detach_virtual", 1);
@@ -2035,7 +2030,6 @@ class NativeCFFI
 	private static var lime_window_set_appearance = CFFI.load("lime", "lime_window_set_appearance", 2);
 	private static var lime_window_get_appearance = CFFI.load("lime", "lime_window_get_appearance", 1);
 	private static var lime_window_set_visible = CFFI.load("lime", "lime_window_set_visible", 2);
-	private static var lime_window_set_always_on_top = CFFI.load("lime", "lime_window_set_always_on_top", 2);
 	private static var lime_window_warp_mouse = CFFI.load("lime", "lime_window_warp_mouse", 3);
 	private static var lime_window_event_manager_register = CFFI.load("lime", "lime_window_event_manager_register", 2);
 	private static var lime_zlib_compress = CFFI.load("lime", "lime_zlib_compress", 2);

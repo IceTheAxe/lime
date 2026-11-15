@@ -5,6 +5,7 @@
 #include <SDL.h>
 #include <SDL_vulkan.h>
 #include <graphics/ImageBuffer.h>
+#include <graphics/RenderThread.h>
 #include <ui/Cursor.h>
 #include <ui/Window.h>
 
@@ -85,10 +86,20 @@ namespace lime {
 			SDL_Renderer* sdlRenderer;
 			SDL_Texture* sdlTexture;
 			SDL_Window* sdlWindow;
+			// NF port: optional GL render thread. The worker starts lazily via
+			// OpenGLBindings::SetMultiThreaded(true); until then the main thread
+			// renders directly.
+			RenderThread renderThread;
+
+			static std::vector<SDLWindow*> windows;
+			static void PauseRendering ();
+			static void ResumeRendering ();
+			static void OnRenderDeviceReset ();
 
 		private:
 
 			void CreateOpenGLContext ();
+			void SetGLContext (SDL_GLContext context);
 
 			int activeSwapInterval;
 			SDL_GLContext context;

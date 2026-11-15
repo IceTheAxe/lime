@@ -3,7 +3,9 @@
 #include "SDLJoystick.h"
 #include "SDLMenu.h"
 #include "SDLTrayIcon.h"
+#include "../../graphics/opengl/OpenGLBindings.h"
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <limits>
 #include <net/LocalSocket.h>
@@ -35,7 +37,8 @@ namespace lime
 	static SDL_atomic_t s_waitEventBlocking;
 
 	// Swaps made by every window, counted on the main thread
-	static unsigned int s_contextFlips = 0;
+	// NF port: atomic because the render worker flips through ContextFlip too
+	static std::atomic<unsigned int> s_contextFlips{0};
 
 	// Pushed from native-ipc's threads when local socket events wait, so a loop
 	// waiting for events wakes and dispatches them.
@@ -507,17 +510,32 @@ namespace lime
 					DispatchRenderFrame(now);
 				}
 			}
-			else
+			else if (!OpenGLBindings::renderThread || !OpenGLBindings::isMultiThreaded
+				|| !OpenGLBindings::renderThread->IsRunning()
+				|| RenderThread::activePendingFrames < RenderThread::MaxPendingFrames)
 			{
 				unsigned int flips = s_contextFlips;
 				RenderEvent::Dispatch(&renderEvent);
 				if (swapPaced) PaceFrameAfterRender(s_contextFlips != flips);
 			}
+			// With the worker saturated, the inline render is dropped like the
+			// old fork did: a queued frame already holds the freshest state.
 		}
 	}
 
 	void SDLApplication::DispatchRenderFrame(double now)
 	{
+
+		// Worker saturated: defer to the next render period instead of queuing
+		// unboundedly. Advancing the deadline keeps the wait loop sleeping
+		// rather than spinning on retries.
+		if (OpenGLBindings::renderThread && OpenGLBindings::isMultiThreaded
+			&& OpenGLBindings::renderThread->IsRunning()
+			&& RenderThread::activePendingFrames >= RenderThread::MaxPendingFrames)
+		{
+			nextRenderUpdate = now + renderFramePeriod;
+			return;
+		}
 
 		unsigned int flips = s_contextFlips;
 		renderEvent.type = RENDER;
@@ -801,6 +819,10 @@ namespace lime
 
 			inBackground = true;
 
+			// NF port: hand the GL context back to SDL before the system can
+			// destroy the EGL surface (Android) or suspend rendering.
+			SDLWindow::PauseRendering();
+
 			windowEvent.type = WINDOW_DEACTIVATE;
 			WindowEvent::Dispatch(&windowEvent);
 			break;
@@ -810,6 +832,10 @@ namespace lime
 			break;
 
 		case SDL_APP_DIDENTERFOREGROUND:
+
+			// NF port: take back the context SDL restored (if any) and resume
+			// the worker before frames start again.
+			SDLWindow::ResumeRendering();
 
 			lastUpdate = GetCurrentTimeMs();
 			nextUpdate = lastUpdate;

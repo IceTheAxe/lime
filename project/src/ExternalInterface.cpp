@@ -5292,6 +5292,17 @@ namespace lime {
 	}
 
 
+	// NF port: SDL-style alert with a button-count return for LimeCompat's
+	// window_alert_compat shim (the old fork's primitive, simplified stub)
+	int lime_application_alert (value application, int type, HxString message, HxString title, value buttons) {
+
+		(void)application; (void)type; (void)buttons;
+		SDL_ShowSimpleMessageBox (SDL_MESSAGEBOX_INFORMATION, hxs_utf8 (title, nullptr), hxs_utf8 (message, nullptr), nullptr);
+		return 0;
+
+	}
+
+
 	void lime_window_close (value window) {
 
 		Window* targetWindow = (Window*)val_data (window);
@@ -14545,6 +14556,11 @@ namespace lime {
 	DEFINE_PRIME1 (lime_system_get_hint);
 	DEFINE_PRIME2v (lime_system_set_hint);
 	DEFINE_PRIME0 (lime_system_get_preferred_locales);
+	// NF port: BackendThread primitives are defined further below; the macros
+	// need the symbols declared first
+	void lime_backend_thread_start ();
+	void lime_backend_thread_stop ();
+	void lime_backend_thread_run (value callback);
 	DEFINE_PRIME0v (lime_backend_thread_start);
 	DEFINE_PRIME0v (lime_backend_thread_stop);
 	DEFINE_PRIME1v (lime_backend_thread_run);
@@ -15135,6 +15151,27 @@ namespace lime {
 	DEFINE_HL_PRIM (_VOID, hl_image_set_max_texture_size, _I32);
 	DEFINE_HL_PRIM (_STRING, hl_system_get_hint, _STRING);
 	DEFINE_HL_PRIM (_VOID, hl_system_set_hint, _STRING _STRING);
+	// NF port: HL variants of the BackendThread primitives (definitions were
+	// missing; BackendThread.hx loads them by name through System.load)
+	HL_PRIM void HL_NAME(hl_backend_thread_start) () {
+		BackendThread::GetInstance()->Start();
+	}
+
+	HL_PRIM void HL_NAME(hl_backend_thread_stop) () {
+		BackendThread::GetInstance()->Stop();
+	}
+
+	HL_PRIM void HL_NAME(hl_backend_thread_run) (vclosure* callback) {
+		ValuePointer* ptr = new ValuePointer (callback);
+		BackendThread::GetInstance()->Push([ptr](){
+			int base = 0;
+			gc_set_top_of_stack (&base, true);
+			ptr->Call ();
+			gc_set_top_of_stack (0, true);
+			delete ptr;
+		});
+	}
+
 	DEFINE_HL_PRIM (_VOID, hl_backend_thread_start, _NO_ARG);
 	DEFINE_HL_PRIM (_VOID, hl_backend_thread_stop, _NO_ARG);
 	DEFINE_HL_PRIM (_VOID, hl_backend_thread_run, _FUN(_VOID, _NO_ARG));

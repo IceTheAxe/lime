@@ -85,7 +85,10 @@ namespace lime {
 
 	bool OpenGLBindings::initialized = false;
 	RenderThread* OpenGLBindings::renderThread = nullptr;
-	bool OpenGLBindings::isMultiThreaded = true;
+	// NF port: lazy worker start. The default is direct (main-thread) rendering;
+	// SetMultiThreaded(true) starts the worker on first use. The old fork could
+	// default to true because it started the worker at context creation.
+	bool OpenGLBindings::isMultiThreaded = false;
 
 	int OpenGLBindings::defaultFramebuffer = 0;
 	int OpenGLBindings::defaultRenderbuffer = 0;
@@ -126,7 +129,7 @@ namespace lime {
 			if (!enabled) {
 
 				renderThread->Pause();
-				
+
 				if (renderThread->WaitForContext(false, 2000) && !renderThread->contextHeld.load(std::memory_order_acquire)) {
 					renderThread->MakeCurrent();
 					isMultiThreaded = false;
@@ -136,19 +139,28 @@ namespace lime {
 
 			} else {
 
+				// NF port: the worker starts lazily on the first enable, so the
+				// default direct path never runs one. The current context
+				// transfers from this thread to the worker here.
 				SDL_Window* window = SDL_GL_GetCurrentWindow();
+				SDL_GLContext context = SDL_GL_GetCurrentContext();
 
-				if (window) {
+				if (window && context) {
 					SDL_GL_MakeCurrent(window, NULL);
-				}
 
-				isMultiThreaded = true;
-				renderThread->Resume();
+					if (!renderThread->IsRunning()) {
+						renderThread->Start(window, context);
+					} else {
+						renderThread->Resume();
+					}
+
+					isMultiThreaded = true;
+				}
 
 			}
 
 		} else {
-			
+
 			isMultiThreaded = enabled;
 
 		}

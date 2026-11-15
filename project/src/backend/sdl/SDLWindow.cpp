@@ -4,6 +4,7 @@
 #include "SDLMenu.h"
 #include "../../graphics/opengl/OpenGL.h"
 #include "../../graphics/opengl/OpenGLBindings.h"
+#include <algorithm>
 
 #ifdef HX_WINDOWS
 #include <SDL_syswm.h>
@@ -1027,6 +1028,7 @@ namespace lime {
 		if (context || sdlRenderer || useVulkan) {
 
 			((SDLApplication*)currentApplication)->RegisterWindow (this);
+			windows.push_back (this);
 
 		} else {
 
@@ -1098,6 +1100,14 @@ namespace lime {
 
 			#endif
 
+			// NF port: register this window's worker with the bindings. The
+			// worker thread itself starts lazily from
+			// OpenGLBindings::SetMultiThreaded(true), so the default path never
+			// runs one.
+			if (context) {
+				OpenGLBindings::BindRenderThread (&renderThread);
+			}
+
 		} else {
 
 			SDL_GL_DeleteContext (context);
@@ -1115,6 +1125,11 @@ namespace lime {
 			((SDLApplication*)currentApplication)->UnregisterWindow (this);
 
 		}
+
+		// NF port: stop the worker while the context still exists; Stop joins
+		// it, and its cleanup path releases the context.
+		renderThread.Stop ();
+		windows.erase (std::remove (windows.begin (), windows.end (), this), windows.end ());
 
 		if (sdlRenderer) {
 
@@ -1173,6 +1188,11 @@ namespace lime {
 
 			}
 
+			// NF port: the SDL window and context go away here while the C++
+			// object may live on; stop the worker before the context is deleted.
+			renderThread.Stop ();
+			windows.erase (std::remove (windows.begin (), windows.end (), this), windows.end ());
+
 			#if defined (HX_WINDOWS) && !defined (HX_WINRT)
 			RestoreResizeEventHook (sdlWindow);
 			#endif
@@ -1221,6 +1241,125 @@ namespace lime {
 	}
 
 
+	// NF port: window registry for the render-thread pause/resume paths
+	std::vector<SDLWindow*> SDLWindow::windows;
+
+	void SDLWindow::SetGLContext (SDL_GLContext context) {
+
+		this->context = context;
+		renderThread.SetContext (context);
+
+	}
+
+
+	void SDLWindow::PauseRendering () {
+
+		for (auto window : windows) {
+			if (window->renderThread.IsRunning ()) {
+				window->renderThread.Pause ();
+			}
+		}
+
+		// Android destroys the EGLSurface on its Java UI thread and waits for
+		// SDL's event thread to release the GL context first. With Lime's GL
+		// worker enabled, SDL does not own that context until we explicitly
+		// hand it back here.
+		for (auto window : windows) {
+			if (!window->renderThread.IsRunning ()) continue;
+
+			// Pausing is not latency critical, so wait generously instead of
+			// giving up early and racing the worker with two users of one
+			// context.
+			if (!window->renderThread.WaitForContext (false, 5000)) {
+				printf ("SDLWindow::PauseRendering: Timed out waiting for the render thread to release its GL context\n");
+				continue;
+			}
+
+			if (window->sdlWindow && window->context
+				&& SDL_GL_MakeCurrent (window->sdlWindow, window->context) < 0) {
+				printf ("SDLWindow::PauseRendering: Failed to return GL context to SDL: %s\n", SDL_GetError ());
+			}
+		}
+
+	}
+
+
+	void SDLWindow::ResumeRendering () {
+
+		// SDL may have recreated both the EGLSurface and EGLContext while the
+		// app was in the background. Capture the context it restored on this
+		// thread before transferring ownership back to Lime's GL worker.
+		SDL_Window* currentWindow = SDL_GL_GetCurrentWindow ();
+		SDL_GLContext currentContext = SDL_GL_GetCurrentContext ();
+		bool contextTransferred = false;
+
+		for (auto window : windows) {
+			if (!window->renderThread.IsRunning ()) continue;
+
+			if (currentContext && (!currentWindow || window->sdlWindow == currentWindow)) {
+				window->SetGLContext (currentContext);
+				contextTransferred = true;
+			}
+		}
+
+		// SetMultiThreaded(false) pauses the worker but deliberately leaves it
+		// running. In direct mode SDL restored the context on this (application)
+		// thread, so keep it here instead of handing it back to the paused worker.
+		if (!OpenGLBindings::isMultiThreaded) {
+			return;
+		}
+
+		if (contextTransferred) {
+			SDL_Window* releaseWindow = currentWindow;
+			if (!releaseWindow) {
+				for (auto window : windows) {
+					if (window->renderThread.IsRunning ()) {
+						releaseWindow = window->sdlWindow;
+						break;
+					}
+				}
+			}
+
+			if (releaseWindow && SDL_GL_MakeCurrent (releaseWindow, NULL) < 0) {
+				printf ("SDLWindow::ResumeRendering: Failed to release SDL's restored GL context: %s\n", SDL_GetError ());
+			}
+		}
+
+		for (auto window : windows) {
+			if (window->renderThread.IsRunning ()) {
+				window->renderThread.Resume ();
+			}
+		}
+
+		for (auto window : windows) {
+			if (window->renderThread.IsRunning ()
+				&& !window->renderThread.WaitForContext (true, 2000)) {
+				printf ("SDLWindow::ResumeRendering: Timed out waiting for the render thread to acquire its GL context\n");
+			}
+		}
+
+	}
+
+
+	void SDLWindow::OnRenderDeviceReset () {
+
+		SDL_Window* currentWindow = SDL_GL_GetCurrentWindow ();
+		SDL_GLContext currentContext = SDL_GL_GetCurrentContext ();
+
+		if (!currentContext) return;
+
+		for (auto window : windows) {
+			if (!currentWindow || window->sdlWindow == currentWindow) {
+				window->SetGLContext (currentContext);
+				if (OpenGLBindings::isMultiThreaded) {
+					window->renderThread.RebindContext ();
+				}
+			}
+		}
+
+	}
+
+
 	void SDLWindow::ContextFlip () {
 
 		if (useVulkan) {
@@ -1231,8 +1370,16 @@ namespace lime {
 
 		if (context && !sdlRenderer) {
 
-			SDL_GL_SwapWindow (sdlWindow);
-			SDLApplication::NoteContextFlip ();
+			if (renderThread.IsRunning () && OpenGLBindings::isMultiThreaded) {
+				renderThread.PushCommand ([this] () {
+					SDL_GL_SwapWindow (sdlWindow);
+					SDLApplication::NoteContextFlip ();
+				});
+				renderThread.Flip ();
+			} else {
+				SDL_GL_SwapWindow (sdlWindow);
+				SDLApplication::NoteContextFlip ();
+			}
 
 		} else if (sdlRenderer) {
 

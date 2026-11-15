@@ -357,6 +357,10 @@
 		<file name="src/graphics/Image.cpp" />
 		<file name="src/graphics/ImageBuffer.cpp" />
 		<file name="src/graphics/RenderEvent.cpp" />
+		<!-- NF port: optional GL render worker (runtime-switched via GL.setMultiThreaded) -->
+		<file name="src/graphics/RenderThread.cpp" />
+		<file name="src/graphics/SharedBufferManager.cpp" />
+		<file name="src/graphics/PerformanceMonitor.cpp" />
 		<file name="src/graphics/utils/ImageDataUtil.cpp" />
 		<file name="src/hx/CFFIExt.cpp" />
 		<file name="src/math/ColorMatrix.cpp" />
@@ -471,7 +475,9 @@
 		<files id="native-toolkit-ogg" if="LIME_OGG" />
 		<files id="native-toolkit-openal" if="LIME_OPENALSOFT" />
 		<files id="native-toolkit-pixman" if="LIME_PIXMAN" />
-		<files id="native-toolkit-png" if="LIME_PNG" />
+		<!-- NF port: PNG.cpp builds against spng (old-fork scheme); upstream's
+		     native-toolkit-png filegroup is not included -->
+		<files id="native-toolkit-spng" if="LIME_PNG" />
 		<files id="native-toolkit-sdl" if="LIME_SDL" unless="emscripten" />
 		<files id="native-desktop" if="LIME_SDL LIME_NATIVE_DESKTOP" />
 		<files id="native-ipc" if="LIME_NATIVE_IPC" />

@@ -3423,19 +3423,8 @@ namespace lime {
 	}
 
 
-	value lime_al_get_sourcedv_soft (value source, int param, int count) {
 
-		value result = alloc_array (count > 0 ? count : 0);
-		if (count <= 0) return result;
 
-		std::vector<ALdouble> values (count, 0.0);
-		auto getSourceDoublev = (void (AL_APIENTRY*) (ALuint, ALenum, ALdouble*))alGetProcAddress ("alGetSourcedvSOFT");
-		if (getSourceDoublev) getSourceDoublev ((ALuint)(uintptr_t)val_data (source), param, values.data ());
-
-		for (int i = 0; i < count; i++) val_array_set_i (result, i, alloc_float ((double)values[i]));
-		return result;
-
-	}
 
 
 	bool lime_alc_reopen_device_soft (value device, HxString newDeviceName, value attributes) {
@@ -3454,12 +3443,8 @@ namespace lime {
 	}
 
 
-	bool lime_alc_is_extension_present (value device, HxString extensionName) {
 
-		ALCdevice* alcDevice = val_is_null (device) ? NULL : (ALCdevice*)val_data (device);
-		return alcIsExtensionPresent (alcDevice, hxs_utf8 (extensionName, nullptr)) == ALC_TRUE;
 
-	}
 
 
 	value lime_alc_get_string_list (value device, int param) {
@@ -3760,24 +3745,8 @@ namespace lime {
 	}
 
 
-	value lime_alc_get_string_list (value device, int param) {
 
-		ALCdevice* alcDevice = val_is_null (device) ? NULL : (ALCdevice*)val_data (device);
-		const char* name = alcGetString (alcDevice, param);
-		int count = CountALCStrings (alcDevice, param, name);
 
-		value result = alloc_array (count);
-
-		for (int i = 0; i < count; i++) {
-
-			val_array_set_i (result, i, alloc_string (name));
-			name += strlen (name) + 1;
-
-		}
-
-		return result;
-
-	}
 
 
 	HL_PRIM varray* HL_NAME(hl_alc_get_string_list) (HL_CFFIPointer* device, int param) {
@@ -3912,13 +3881,8 @@ namespace lime {
 	}
 
 
-	value lime_alc_capture_open_device (HxString devicename, int frequency, int format, int buffersize) {
 
-		ALCdevice* alcDevice = alcCaptureOpenDevice (devicename.__s, frequency, format, buffersize);
 
-		return alc_object (alcDevice);
-
-	}
 
 
 	HL_PRIM HL_CFFIPointer* HL_NAME(hl_alc_capture_open_device) (hl_vstring* devicename, int frequency, int format, int buffersize) {
@@ -3930,14 +3894,8 @@ namespace lime {
 	}
 
 
-	bool lime_alc_capture_close_device (value device) {
 
-		ALCdevice* alcDevice = (ALCdevice*)val_data (device);
-		forget_alc_device (alcDevice);
 
-		return alcCaptureCloseDevice (alcDevice);
-
-	}
 
 
 	HL_PRIM bool HL_NAME(hl_alc_capture_close_device) (HL_CFFIPointer* device) {
@@ -3950,12 +3908,8 @@ namespace lime {
 	}
 
 
-	void lime_alc_capture_start (value device) {
 
-		ALCdevice* alcDevice = (ALCdevice*)val_data (device);
-		alcCaptureStart (alcDevice);
 
-	}
 
 
 	HL_PRIM void HL_NAME(hl_alc_capture_start) (HL_CFFIPointer* device) {
@@ -3966,12 +3920,8 @@ namespace lime {
 	}
 
 
-	void lime_alc_capture_stop (value device) {
 
-		ALCdevice* alcDevice = (ALCdevice*)val_data (device);
-		alcCaptureStop (alcDevice);
 
-	}
 
 
 	HL_PRIM void HL_NAME(hl_alc_capture_stop) (HL_CFFIPointer* device) {
@@ -3982,13 +3932,8 @@ namespace lime {
 	}
 
 
-	void lime_alc_capture_samples (value device, value buffer, int samples) {
 
-		ALCdevice* alcDevice = (ALCdevice*)val_data (device);
-		Bytes bytes (buffer);
-		alcCaptureSamples (alcDevice, bytes.b, samples);
 
-	}
 
 
 	HL_PRIM void HL_NAME(hl_alc_capture_samples) (HL_CFFIPointer* device, Bytes* buffer, int samples) {
@@ -4069,7 +4014,6 @@ namespace lime {
 	DEFINE_PRIME3 (lime_al_get_sourcefv);
 	DEFINE_PRIME2 (lime_al_get_sourcei);
 	DEFINE_PRIME3 (lime_al_get_sourceiv);
-	DEFINE_PRIME3 (lime_al_get_sourcedv_soft);
 	DEFINE_PRIME1 (lime_al_get_string);
 	DEFINE_PRIME1 (lime_al_is_aux);
 	DEFINE_PRIME1 (lime_al_is_buffer);
@@ -4121,8 +4065,6 @@ namespace lime {
 	DEFINE_PRIME2 (lime_alc_get_string_list);
 	DEFINE_PRIME3 (lime_alc_get_integerv);
 	DEFINE_PRIME2 (lime_alc_get_string);
-	DEFINE_PRIME2 (lime_alc_get_string_list);
-	DEFINE_PRIME2 (lime_alc_is_extension_present);
 	DEFINE_PRIME1 (lime_alc_make_context_current);
 	DEFINE_PRIME1 (lime_alc_open_device);
 	DEFINE_PRIME3 (lime_alc_reopen_device_soft);
@@ -4130,11 +4072,9 @@ namespace lime {
 	DEFINE_PRIME1v (lime_alc_process_context);
 	DEFINE_PRIME1v (lime_alc_resume_device);
 	DEFINE_PRIME1v (lime_alc_suspend_context);
-	DEFINE_PRIME4 (lime_alc_capture_open_device);
-	DEFINE_PRIME1 (lime_alc_capture_close_device);
-	DEFINE_PRIME1v (lime_alc_capture_start);
-	DEFINE_PRIME1v (lime_alc_capture_stop);
-	DEFINE_PRIME3v (lime_alc_capture_samples);
+	// NF port: the capture-device registrations above already cover these;
+	// DEFINE_PRIME expands inline wrappers, so a second block here is a
+	// redefinition error
 
 
 	#define _TBYTES _OBJ (_I32 _BYTES)

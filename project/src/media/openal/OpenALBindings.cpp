@@ -3447,6 +3447,10 @@ namespace lime {
 
 
 
+	// defined further down (next to lime_alc_get_string); forward-declared here
+	// because this function sits earlier in the translation unit
+	static int CountALCStrings (ALCdevice* device, int param, const char* result);
+
 	value lime_alc_get_string_list (value device, int param) {
 
 		value result = alloc_array (0);
@@ -3462,6 +3466,18 @@ namespace lime {
 						const ALCchar* item = getStringi (alcDevice, param, i);
 						if (item) val_array_set_i (result, i, alloc_string (item));
 					}
+				}
+			} else {
+				// generic enumeration: alcGetString returns a null-terminated
+				// string table for the device/capture specifiers (upstream behavior)
+				const char* name = alcGetString (alcDevice, param);
+				int count = CountALCStrings (alcDevice, param, name);
+
+				result = alloc_array (count);
+
+				for (int i = 0; i < count; i++) {
+					val_array_set_i (result, i, alloc_string (name));
+					name += strlen (name) + 1;
 				}
 			}
 		#endif

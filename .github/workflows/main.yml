@@ -52,6 +52,11 @@ jobs:
           haxelib install hxp --quiet
           haxelib install utest --quiet
 
+      - name: Run tools tests
+        working-directory: tests/tools
+        # Parses project files from Lime's own source, so needs no native library
+        run: haxe test.hxml
+
       # CrossByte, which serves lime test html5, needs Haxe 4.3 to build the tools
       - uses: ./.github/actions/rebuild-lime-tools
         with:
@@ -109,6 +114,11 @@ jobs:
           xvfb-run -a lime test neko -release -verbose -nocolor
           xvfb-run -a lime test hl -release -verbose -nocolor
           xvfb-run -a lime test linux -release -verbose -nocolor
+
+      - name: Check a plain hxml HashLink build
+        working-directory: tests/plain-hxml
+        timeout-minutes: 10
+        run: haxe --run Run
 
       - name: Run OpenGL tests
         working-directory: tests/unit
@@ -219,7 +229,8 @@ jobs:
         run: |
           sudo add-apt-repository ppa:haxe/releases -y
           sudo apt-get update
-          sudo apt-get install -y haxe
+          # Launchpad sometimes answers 503 for a while; retry rather than fail the job
+          sudo apt-get install -y -o Acquire::Retries=5 haxe
           mkdir $HOME/haxelib
           haxelib setup $HOME/haxelib
 
@@ -624,6 +635,11 @@ jobs:
           lime test hl -release -verbose -nocolor
           lime test mac -x86_64 -release -verbose -nocolor
 
+      - name: Check a plain hxml HashLink build
+        working-directory: tests/plain-hxml
+        timeout-minutes: 10
+        run: haxe --run Run
+
       - name: Install samples
         run: |
           haxelib git lime-samples https://github.com/openfl/lime-samples --quiet
@@ -753,6 +769,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           lime test windows -release -verbose -nocolor
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Check a plain hxml HashLink build
+        working-directory: tests/plain-hxml
+        timeout-minutes: 10
+        run: haxe --run Run
 
       - name: Run software OpenGL tests
         working-directory: tests/unit

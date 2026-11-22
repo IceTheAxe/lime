@@ -5617,6 +5617,8 @@ class NativeCFFI
 
 	@:cffi private static function lime_curl_easy_duphandle(handle:CFFIPointer):CFFIPointer;
 
+	@:cffi private static function lime_curl_easy_errorbuffer(handle:CFFIPointer):Dynamic;
+
 	@:cffi private static function lime_curl_easy_escape(curl:CFFIPointer, url:String, length:Int):Dynamic;
 
 	@:cffi private static function lime_curl_easy_flush(curl:CFFIPointer):Void;
@@ -5655,7 +5657,11 @@ class NativeCFFI
 
 	@:cffi private static function lime_curl_multi_setopt(multi_handle:CFFIPointer, option:Int, parameter:Dynamic):Int;
 
+	@:cffi private static function lime_curl_multi_poll(multi_handle:CFFIPointer, timeout_ms:Int):Int;
+
 	@:cffi private static function lime_curl_multi_wait(multi_handle:CFFIPointer, timeout_ms:Int):Int;
+
+	@:cffi private static function lime_curl_multi_wakeup(multi_handle:CFFIPointer):Int;
 	#else
 	private static var lime_curl_getdate = new cpp.Callable<String->Float->Float>(cpp.Prime._loadPrime("lime", "lime_curl_getdate", "sdd", false));
 	private static var lime_curl_global_cleanup = new cpp.Callable<Void->cpp.Void>(cpp.Prime._loadPrime("lime", "lime_curl_global_cleanup", "v", false));
@@ -5665,6 +5671,8 @@ class NativeCFFI
 	private static var lime_curl_easy_cleanup = new cpp.Callable<cpp.Object->cpp.Void>(cpp.Prime._loadPrime("lime", "lime_curl_easy_cleanup", "ov", false));
 	private static var lime_curl_easy_duphandle = new cpp.Callable<cpp.Object->cpp.Object>(cpp.Prime._loadPrime("lime", "lime_curl_easy_duphandle", "oo",
 		false));
+	private static var lime_curl_easy_errorbuffer = new cpp.Callable<cpp.Object->cpp.Object>(cpp.Prime._loadPrime("lime", "lime_curl_easy_errorbuffer",
+		"oo", false));
 	private static var lime_curl_easy_escape = new cpp.Callable<cpp.Object->String->Int->cpp.Object>(cpp.Prime._loadPrime("lime", "lime_curl_easy_escape",
 		"osio", false));
 	private static var lime_curl_easy_flush = new cpp.Callable<cpp.Object->cpp.Void>(cpp.Prime._loadPrime("lime", "lime_curl_easy_flush", "ov", false));
@@ -5695,7 +5703,9 @@ class NativeCFFI
 		"lime_curl_multi_remove_handle", "ooi", false));
 	private static var lime_curl_multi_setopt = new cpp.Callable<cpp.Object->Int->cpp.Object->Int>(cpp.Prime._loadPrime("lime", "lime_curl_multi_setopt",
 		"oioi", false));
+	private static var lime_curl_multi_poll = new cpp.Callable<cpp.Object->Int->Int>(cpp.Prime._loadPrime("lime", "lime_curl_multi_poll", "oii", false));
 	private static var lime_curl_multi_wait = new cpp.Callable<cpp.Object->Int->Int>(cpp.Prime._loadPrime("lime", "lime_curl_multi_wait", "oii", false));
+	private static var lime_curl_multi_wakeup = new cpp.Callable<cpp.Object->Int>(cpp.Prime._loadPrime("lime", "lime_curl_multi_wakeup", "oi", false));
 	#end
 	#end
 	#if (neko || cppia)
@@ -5706,6 +5716,7 @@ class NativeCFFI
 	private static var lime_curl_version_info = CFFI.load("lime", "lime_curl_version_info", 1);
 	private static var lime_curl_easy_cleanup = CFFI.load("lime", "lime_curl_easy_cleanup", 1);
 	private static var lime_curl_easy_duphandle = CFFI.load("lime", "lime_curl_easy_duphandle", 1);
+	private static var lime_curl_easy_errorbuffer = CFFI.load("lime", "lime_curl_easy_errorbuffer", 1);
 	private static var lime_curl_easy_escape = CFFI.load("lime", "lime_curl_easy_escape", 3);
 	private static var lime_curl_easy_flush = CFFI.load("lime", "lime_curl_easy_flush", 1);
 	private static var lime_curl_easy_getinfo = CFFI.load("lime", "lime_curl_easy_getinfo", 2);
@@ -5725,7 +5736,9 @@ class NativeCFFI
 	private static var lime_curl_multi_perform = CFFI.load("lime", "lime_curl_multi_perform", 1);
 	private static var lime_curl_multi_remove_handle = CFFI.load("lime", "lime_curl_multi_remove_handle", 2);
 	private static var lime_curl_multi_setopt = CFFI.load("lime", "lime_curl_multi_setopt", 3);
+	private static var lime_curl_multi_poll = CFFI.load("lime", "lime_curl_multi_poll", 2);
 	private static var lime_curl_multi_wait = CFFI.load("lime", "lime_curl_multi_wait", 2);
+	private static var lime_curl_multi_wakeup = CFFI.load("lime", "lime_curl_multi_wakeup", 1);
 	#end
 
 	#if hl
@@ -5754,6 +5767,11 @@ class NativeCFFI
 	@:hlNative("lime", "hl_curl_easy_cleanup") private static function lime_curl_easy_cleanup(handle:CFFIPointer):Void {}
 
 	@:hlNative("lime", "hl_curl_easy_duphandle") private static function lime_curl_easy_duphandle(handle:CFFIPointer):CFFIPointer
+	{
+		return null;
+	}
+
+	@:hlNative("lime", "hl_curl_easy_errorbuffer") private static function lime_curl_easy_errorbuffer(handle:CFFIPointer):hl.Bytes
 	{
 		return null;
 	}
@@ -5851,7 +5869,17 @@ class NativeCFFI
 		return 0;
 	}
 
+	@:hlNative("lime", "hl_curl_multi_poll") private static function lime_curl_multi_poll(multi_handle:CFFIPointer, timeout_ms:Int):Int
+	{
+		return 0;
+	}
+
 	@:hlNative("lime", "hl_curl_multi_wait") private static function lime_curl_multi_wait(multi_handle:CFFIPointer, timeout_ms:Int):Int
+	{
+		return 0;
+	}
+
+	@:hlNative("lime", "hl_curl_multi_wakeup") private static function lime_curl_multi_wakeup(multi_handle:CFFIPointer):Int
 	{
 		return 0;
 	}
@@ -8002,7 +8030,7 @@ class NativeCFFI
 
 	@:cffi private static function lime_hb_buffer_get_replacement_codepoint(buffer:CFFIPointer):Int;
 
-	@:cffi private static function lime_hb_buffer_get_script(buffer:CFFIPointer):Int;
+	@:cffi private static function lime_hb_buffer_get_script(buffer:CFFIPointer):Float;
 
 	@:cffi private static function lime_hb_buffer_get_segment_properties(buffer:CFFIPointer, props:CFFIPointer):Void;
 
@@ -8038,7 +8066,7 @@ class NativeCFFI
 
 	@:cffi private static function lime_hb_buffer_set_replacement_codepoint(buffer:CFFIPointer, replacement:Int):Void;
 
-	@:cffi private static function lime_hb_buffer_set_script(buffer:CFFIPointer, script:Int):Void;
+	@:cffi private static function lime_hb_buffer_set_script(buffer:CFFIPointer, script:Float):Void;
 
 	@:cffi private static function lime_hb_buffer_set_segment_properties(buffer:CFFIPointer, props:CFFIPointer):Void;
 
@@ -8121,6 +8149,8 @@ class NativeCFFI
 	@:cffi private static function lime_hb_language_get_default():CFFIPointer;
 
 	@:cffi private static function lime_hb_language_to_string(language:CFFIPointer):Dynamic;
+
+	@:cffi private static function lime_hb_segment_properties_create():CFFIPointer;
 
 	@:cffi private static function lime_hb_segment_properties_equal(a:CFFIPointer, b:CFFIPointer):Bool;
 
@@ -8217,7 +8247,7 @@ class NativeCFFI
 	private static var lime_hb_buffer_get_length = new cpp.Callable<cpp.Object->Int>(cpp.Prime._loadPrime("lime", "lime_hb_buffer_get_length", "oi", false));
 	private static var lime_hb_buffer_get_replacement_codepoint = new cpp.Callable<cpp.Object->Int>(cpp.Prime._loadPrime("lime",
 		"lime_hb_buffer_get_replacement_codepoint", "oi", false));
-	private static var lime_hb_buffer_get_script = new cpp.Callable<cpp.Object->Int>(cpp.Prime._loadPrime("lime", "lime_hb_buffer_get_script", "oi", false));
+	private static var lime_hb_buffer_get_script = new cpp.Callable<cpp.Object->Float>(cpp.Prime._loadPrime("lime", "lime_hb_buffer_get_script", "od", false));
 	private static var lime_hb_buffer_get_segment_properties = new cpp.Callable<cpp.Object->cpp.Object->cpp.Void>(cpp.Prime._loadPrime("lime",
 		"lime_hb_buffer_get_segment_properties", "oov", false));
 	private static var lime_hb_buffer_guess_segment_properties = new cpp.Callable<cpp.Object->cpp.Void>(cpp.Prime._loadPrime("lime",
@@ -8250,8 +8280,8 @@ class NativeCFFI
 		false));
 	private static var lime_hb_buffer_set_replacement_codepoint = new cpp.Callable<cpp.Object->Int->cpp.Void>(cpp.Prime._loadPrime("lime",
 		"lime_hb_buffer_set_replacement_codepoint", "oiv", false));
-	private static var lime_hb_buffer_set_script = new cpp.Callable<cpp.Object->Int->cpp.Void>(cpp.Prime._loadPrime("lime", "lime_hb_buffer_set_script",
-		"oiv", false));
+	private static var lime_hb_buffer_set_script = new cpp.Callable<cpp.Object->Float->cpp.Void>(cpp.Prime._loadPrime("lime", "lime_hb_buffer_set_script",
+		"odv", false));
 	private static var lime_hb_buffer_set_segment_properties = new cpp.Callable<cpp.Object->cpp.Object->cpp.Void>(cpp.Prime._loadPrime("lime",
 		"lime_hb_buffer_set_segment_properties", "oov", false));
 	private static var lime_hb_face_create = new cpp.Callable<cpp.Object->Int->cpp.Object>(cpp.Prime._loadPrime("lime", "lime_hb_face_create", "oio", false));
@@ -8319,6 +8349,8 @@ class NativeCFFI
 		false));
 	private static var lime_hb_language_to_string = new cpp.Callable<cpp.Object->cpp.Object>(cpp.Prime._loadPrime("lime", "lime_hb_language_to_string", "oo",
 		false));
+	private static var lime_hb_segment_properties_create = new cpp.Callable<Void->cpp.Object>(cpp.Prime._loadPrime("lime",
+		"lime_hb_segment_properties_create", "o", false));
 	private static var lime_hb_segment_properties_equal = new cpp.Callable<cpp.Object->cpp.Object->Bool>(cpp.Prime._loadPrime("lime",
 		"lime_hb_segment_properties_equal", "oob", false));
 	private static var lime_hb_segment_properties_hash = new cpp.Callable<cpp.Object->Int>(cpp.Prime._loadPrime("lime", "lime_hb_segment_properties_hash",
@@ -8385,7 +8417,7 @@ class NativeCFFI
 	private static var lime_hb_buffer_get_language:Dynamic->Dynamic = CFFI.load("lime", "lime_hb_buffer_get_language", 1);
 	private static var lime_hb_buffer_get_length:Dynamic->Int = CFFI.load("lime", "lime_hb_buffer_get_length", 1);
 	private static var lime_hb_buffer_get_replacement_codepoint:Dynamic->Int = CFFI.load("lime", "lime_hb_buffer_get_replacement_codepoint", 1);
-	private static var lime_hb_buffer_get_script:Dynamic->Int = CFFI.load("lime", "lime_hb_buffer_get_script", 1);
+	private static var lime_hb_buffer_get_script:Dynamic->Float = CFFI.load("lime", "lime_hb_buffer_get_script", 1);
 	private static var lime_hb_buffer_get_segment_properties:Dynamic->Dynamic->Void = CFFI.load("lime", "lime_hb_buffer_get_segment_properties", 2);
 	private static var lime_hb_buffer_guess_segment_properties:Dynamic->Void = CFFI.load("lime", "lime_hb_buffer_guess_segment_properties", 1);
 	private static var lime_hb_buffer_normalize_glyphs:Dynamic->Void = CFFI.load("lime", "lime_hb_buffer_normalize_glyphs", 1);
@@ -8403,7 +8435,7 @@ class NativeCFFI
 	private static var lime_hb_buffer_set_language:Dynamic->Dynamic->Void = CFFI.load("lime", "lime_hb_buffer_set_language", 2);
 	private static var lime_hb_buffer_set_length:Dynamic->Int->Bool = CFFI.load("lime", "lime_hb_buffer_set_length", 2);
 	private static var lime_hb_buffer_set_replacement_codepoint:Dynamic->Int->Void = CFFI.load("lime", "lime_hb_buffer_set_replacement_codepoint", 2);
-	private static var lime_hb_buffer_set_script:Dynamic->Int->Void = CFFI.load("lime", "lime_hb_buffer_set_script", 2);
+	private static var lime_hb_buffer_set_script:Dynamic->Float->Void = CFFI.load("lime", "lime_hb_buffer_set_script", 2);
 	private static var lime_hb_buffer_set_segment_properties:Dynamic->Dynamic->Void = CFFI.load("lime", "lime_hb_buffer_set_segment_properties", 2);
 	private static var lime_hb_face_create:Dynamic->Int->Dynamic = CFFI.load("lime", "lime_hb_face_create", 2);
 	private static var lime_hb_face_get_empty:Void->Dynamic = CFFI.load("lime", "lime_hb_face_get_empty", 0);
@@ -8450,6 +8482,7 @@ class NativeCFFI
 	private static var lime_hb_language_from_string:String->Dynamic = CFFI.load("lime", "lime_hb_language_from_string", 1);
 	private static var lime_hb_language_get_default:Void->Dynamic = CFFI.load("lime", "lime_hb_language_get_default", 0);
 	private static var lime_hb_language_to_string:Dynamic->Dynamic = CFFI.load("lime", "lime_hb_language_to_string", 1);
+	private static var lime_hb_segment_properties_create:Void->Dynamic = CFFI.load("lime", "lime_hb_segment_properties_create", 0);
 	private static var lime_hb_segment_properties_equal:Dynamic->Dynamic->Bool = CFFI.load("lime", "lime_hb_segment_properties_equal", 2);
 	private static var lime_hb_segment_properties_hash:Dynamic->Int = CFFI.load("lime", "lime_hb_segment_properties_hash", 1);
 	private static var lime_hb_set_add:Dynamic->Int->Void = CFFI.load("lime", "lime_hb_set_add", 2);
@@ -8825,6 +8858,11 @@ class NativeCFFI
 	}
 
 	@:hlNative("lime", "hl_hb_language_to_string") private static function lime_hb_language_to_string(language:CFFIPointer):hl.Bytes
+	{
+		return null;
+	}
+
+	@:hlNative("lime", "hl_hb_segment_properties_create") private static function lime_hb_segment_properties_create():CFFIPointer
 	{
 		return null;
 	}

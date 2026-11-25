@@ -990,9 +990,11 @@ jobs:
           # Lime 8.4.0 split these out of the core library. The windows job
           # installs all four; missing ones make `haxelib run lime` fail with
           # "Could not find haxelib lime" right after `haxelib dev lime`.
-          haxelib install native-desktop 1.1.0 --quiet
+          # OpenAL 1.25.2 / new bindings need native-desktop 1.2.1 (GetApplicationMenu) and StageWebView 1.1.0,
+          # matching the upstream jobs' install-haxelib-libraries versions.
+          haxelib install native-desktop 1.2.1 --quiet
           haxelib install native-ipc 1.0.0 --quiet
-          haxelib install StageWebView 1.0.1 --quiet
+          haxelib install StageWebView 1.1.0 --quiet
           haxelib install wsproto 1.0.0 --quiet
           # tools/tools.hxml now requires crossbyte (upstream 3015a6e58b)
           haxelib install crossbyte 1.0.1 --quiet

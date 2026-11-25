@@ -998,9 +998,12 @@ jobs:
           haxelib install wsproto 1.0.0 --quiet
           # tools/tools.hxml now requires crossbyte (upstream 3015a6e58b)
           haxelib install crossbyte 1.0.1 --quiet
-          # OpenAL Soft 1.25.2 needs C++20 (hxcpp >= 4.3.135); 4.3.184 matches the latest prerelease.
-          curl --output ../hxcpp-4.3.184.zip --location https://github.com/HaxeFoundation/hxcpp/releases/download/v4.3.184/hxcpp-4.3.184.zip
-          haxelib install ../hxcpp-4.3.184.zip --quiet
+          # OpenAL Soft 1.25.2 needs C++20 (hxcpp >= 4.3.135), and on the new VS2026
+          # (VS18) runners hxcpp 4.3.184's msvc-arm64-setup.bat uses "VsDevCmd -arch=arm64",
+          # which now yields bin/HostARM64/ARM64/cl.exe (cannot run on x64 runner) ->
+          # "Process creation failure : cl.exe". TieGao/hxcpp master carries the fix
+          # (commit f54b15af: vcvarsall.bat amd64_arm64 cross-compile). Use that instead.
+          haxelib git hxcpp https://github.com/TieGao/hxcpp.git master --always
           haxelib install format --quiet
           haxelib install hxp --quiet
           haxelib install utest --quiet

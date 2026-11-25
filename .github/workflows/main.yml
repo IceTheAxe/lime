@@ -14,7 +14,20 @@ env:
 
 jobs:
 
+  # In openfl/lime, a push only runs CI on the long-lived branches: a branch with a
+  # pull request is tested by the pull request's run, which would otherwise run the
+  # same jobs again. In forks every push runs, and any branch can be run by hand.
+  gate:
+    runs-on: ubuntu-22.04
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+    steps:
+      - id: check
+        run: echo "run=${{ github.event_name != 'push' || github.repository != 'openfl/lime' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master' || endsWith(github.ref, '-dev') || endsWith(github.ref, '-Dev') || startsWith(github.ref, 'refs/heads/train/') }}" >> "$GITHUB_OUTPUT"
+
   linux:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
     runs-on: ubuntu-22.04
     steps:
 
@@ -28,6 +41,9 @@ jobs:
           sudo apt-get install -y libgl1-mesa-dev libglu1-mesa-dev g++-multilib gcc-multilib libasound2-dev libx11-dev libxext-dev libxi-dev libxrandr-dev libxinerama-dev libpulse-dev libmbedtls-dev libpng-dev libturbojpeg-dev libuv1-dev libvorbis-dev libvulkan-dev
           # GStreamer decodes video in the unit tests
           sudo apt-get install -y gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav xvfb libgl1-mesa-dri
+          # OpenAL Soft needs C++20, and GCC 11 is the Ubuntu 22.04 default
+          sudo apt-get install -y g++-12 g++-12-multilib
+          echo "CXX=g++-12" >> $GITHUB_ENV
 
       - uses: krdlab/setup-haxe@v2
         with:
@@ -38,19 +54,25 @@ jobs:
           echo "HAXEPATH=$HAXE_STD_PATH/.." >> $GITHUB_ENV
 
       - name: Install Haxe dependencies
+        uses: ./.github/actions/install-haxelib-libraries
+        with:
+          libraries: |
+            native-desktop 1.2.1
+            native-ipc 1.0.0
+            wsproto 1.0.0
+            crossbyte 1.0.1
+            haxelib 4.2.0
+            StageWebView 1.1.0
+            format 3.8.0
+            hxp 1.3.1
+            utest 1.13.2
+
+      - name: Install Haxe dependencies from git
+        shell: bash
         run: |
-          haxelib install native-desktop 1.1.0 --quiet
-          haxelib install native-ipc 1.0.0 --quiet
-          haxelib install wsproto 1.0.0 --quiet
-          haxelib install crossbyte 1.0.1 --quiet
-          haxelib --global update haxelib --quiet
-          haxelib install StageWebView 1.0.1 --quiet
           haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
           haxelib run libhxcpp setup
           haxe --cwd "$(haxelib libpath libhxcpp)/tools/hxcpp" compile.hxml
-          haxelib install format --quiet
-          haxelib install hxp --quiet
-          haxelib install utest --quiet
 
       - name: Run tools tests
         working-directory: tests/tools
@@ -67,6 +89,9 @@ jobs:
           haxelib run lime setup -alias -y -nocffi
 
       - name: Rebuild Lime (Linux)
+        # A rebuild takes up to about 30 minutes (iOS). libhxcpp can leave a failed build running, so
+        # a compile error would otherwise hold the runner until the job times out after 6 hours
+        timeout-minutes: 90
         run: |
           lime rebuild linux -32 -release -nocolor -verbose -nocffi
           lime rebuild linux -64 -release -nocolor -verbose -nocffi
@@ -108,6 +133,12 @@ jobs:
           LIME_TEST_PYTHON: ${{ steps.tls-python.outputs.python-path }}
           # OpenAL's null output stands in for the sound card runners lack
           ALSOFT_DRIVERS: "null"
+          # The clipboard tests replace what the clipboard holds, so they only run here
+          LIME_TEST_CLIPBOARD: "1"
+          # The trash tests move files to the user's trash, so they only run here
+          LIME_TEST_TRASH: "1"
+          # NetworkInterfaceTest changes the network with sudo to see onChange, so it only runs here
+          LIME_TEST_NETWORK: "1"
         run: |
           python -m unittest discover -s fixtures
           # The test app exits when its first window cannot be made, so it needs a display
@@ -208,6 +239,8 @@ jobs:
           lime build SimpleVideo linux -release -verbose -nocolor
 
   linux-arm64:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
     runs-on: ubuntu-22.04-arm
     steps:
 
@@ -222,6 +255,9 @@ jobs:
           sudo apt-get install -y libgl1-mesa-dev libglu1-mesa-dev libasound2-dev libx11-dev libxext-dev libxi-dev libxrandr-dev libxinerama-dev libpulse-dev libmbedtls-dev libpng-dev libturbojpeg-dev libuv1-dev libvorbis-dev libvulkan-dev
           # GStreamer decodes video in the unit tests
           sudo apt-get install -y gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav xvfb libgl1-mesa-dri
+          # OpenAL Soft needs C++20, and GCC 11 is the Ubuntu 22.04 default
+          sudo apt-get install -y g++-12
+          echo "CXX=g++-12" >> $GITHUB_ENV
 
       # krdlab/setup-haxe doesn't support arm64 linux
       # so this is our workaround for now
@@ -239,19 +275,25 @@ jobs:
           echo "HAXEPATH=$HAXE_STD_PATH/.." >> $GITHUB_ENV
 
       - name: Install Haxe dependencies
+        uses: ./.github/actions/install-haxelib-libraries
+        with:
+          libraries: |
+            native-desktop 1.2.1
+            native-ipc 1.0.0
+            wsproto 1.0.0
+            crossbyte 1.0.1
+            haxelib 4.2.0
+            StageWebView 1.1.0
+            format 3.8.0
+            hxp 1.3.1
+            utest 1.13.2
+
+      - name: Install Haxe dependencies from git
+        shell: bash
         run: |
-          haxelib install native-desktop 1.1.0 --quiet
-          haxelib install native-ipc 1.0.0 --quiet
-          haxelib install wsproto 1.0.0 --quiet
-          haxelib install crossbyte 1.0.1 --quiet
-          haxelib --global update haxelib --quiet
-          haxelib install StageWebView 1.0.1 --quiet
           haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
           haxelib run libhxcpp setup
           haxe --cwd "$(haxelib libpath libhxcpp)/tools/hxcpp" compile.hxml
-          haxelib install format --quiet
-          haxelib install hxp --quiet
-          haxelib install utest --quiet
 
       - name: Rebuild Lime tools
         run: |
@@ -260,6 +302,7 @@ jobs:
           haxelib run lime setup -alias -y -nocffi
 
       - name: Rebuild Lime (Linux ARM64)
+        timeout-minutes: 90
         run: |
           lime rebuild linux -release -nocolor -verbose -nocffi
 
@@ -282,6 +325,12 @@ jobs:
           LIME_TEST_PYTHON: ${{ steps.tls-python.outputs.python-path }}
           # OpenAL's null output stands in for the sound card runners lack
           ALSOFT_DRIVERS: "null"
+          # The clipboard tests replace what the clipboard holds, so they only run here
+          LIME_TEST_CLIPBOARD: "1"
+          # The trash tests move files to the user's trash, so they only run here
+          LIME_TEST_TRASH: "1"
+          # NetworkInterfaceTest changes the network with sudo to see onChange, so it only runs here
+          LIME_TEST_NETWORK: "1"
         run: |
           python -m unittest discover -s fixtures
           # The test app exits when its first window cannot be made, so it needs a display
@@ -348,6 +397,8 @@ jobs:
           lime build SimpleVideo linux -release -verbose -nocolor
 
   vulkan-smoke:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
     runs-on: ubuntu-22.04
     steps:
 
@@ -359,6 +410,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libgl1-mesa-dev libglu1-mesa-dev libasound2-dev libx11-dev libx11-xcb1 libxext-dev libxi-dev libxrandr-dev libxinerama-dev libpulse-dev libmbedtls-dev libpng-dev libturbojpeg-dev libuv1-dev libvorbis-dev libvulkan-dev mesa-vulkan-drivers xvfb
+          # OpenAL Soft needs C++20, and GCC 11 is the Ubuntu 22.04 default
+          sudo apt-get install -y g++-12
+          echo "CXX=g++-12" >> $GITHUB_ENV
 
       - uses: krdlab/setup-haxe@v2
         with:
@@ -369,19 +423,25 @@ jobs:
           echo "HAXEPATH=$HAXE_STD_PATH/.." >> $GITHUB_ENV
 
       - name: Install Haxe dependencies
+        uses: ./.github/actions/install-haxelib-libraries
+        with:
+          libraries: |
+            native-desktop 1.2.1
+            native-ipc 1.0.0
+            wsproto 1.0.0
+            crossbyte 1.0.1
+            haxelib 4.2.0
+            StageWebView 1.1.0
+            format 3.8.0
+            hxp 1.3.1
+            utest 1.13.2
+
+      - name: Install Haxe dependencies from git
+        shell: bash
         run: |
-          haxelib install native-desktop 1.1.0 --quiet
-          haxelib install native-ipc 1.0.0 --quiet
-          haxelib install wsproto 1.0.0 --quiet
-          haxelib install crossbyte 1.0.1 --quiet
-          haxelib --global update haxelib --quiet
-          haxelib install StageWebView 1.0.1 --quiet
           haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
           haxelib run libhxcpp setup
           haxe --cwd "$(haxelib libpath libhxcpp)/tools/hxcpp" compile.hxml
-          haxelib install format --quiet
-          haxelib install hxp --quiet
-          haxelib install utest --quiet
 
       # CrossByte, which serves lime test html5, needs Haxe 4.3 to build the tools
       - uses: ./.github/actions/rebuild-lime-tools
@@ -393,6 +453,7 @@ jobs:
           haxelib run lime setup -alias -y -nocffi
 
       - name: Rebuild Lime (Linux default Vulkan)
+        timeout-minutes: 90
         run: |
           lime rebuild linux -64 -release -nocolor -verbose -nocffi
 
@@ -411,6 +472,8 @@ jobs:
           SDL_AUDIODRIVER=dummy xvfb-run -a Export/linux/bin/LimeVulkanSmoke
 
   macos:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
     runs-on: macos-15
     steps:
 
@@ -427,18 +490,24 @@ jobs:
           echo "HAXEPATH=$HAXE_STD_PATH/.." >> $GITHUB_ENV
 
       - name: Install Haxe dependencies
+        uses: ./.github/actions/install-haxelib-libraries
+        with:
+          libraries: |
+            native-desktop 1.2.1
+            native-ipc 1.0.0
+            StageWebView 1.1.0
+            wsproto 1.0.0
+            crossbyte 1.0.1
+            format 3.8.0
+            hxp 1.3.1
+            utest 1.13.2
+
+      - name: Install Haxe dependencies from git
+        shell: bash
         run: |
-          haxelib install native-desktop 1.1.0 --quiet
-          haxelib install native-ipc 1.0.0 --quiet
-          haxelib install StageWebView 1.0.1 --quiet
-          haxelib install wsproto 1.0.0 --quiet
-          haxelib install crossbyte 1.0.1 --quiet
           haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
           haxelib run libhxcpp setup
           haxe --cwd "$(haxelib libpath libhxcpp)/tools/hxcpp" compile.hxml
-          haxelib install format --quiet
-          haxelib install hxp --quiet
-          haxelib install utest --quiet
 
       - name: Rebuild Lime tools
         run: |
@@ -447,6 +516,7 @@ jobs:
           haxelib run lime setup -alias -y -nocffi
 
       - name: Rebuild Lime (macOS)
+        timeout-minutes: 90
         run: |
           lime rebuild macos -clean -release -arm64 -nocolor -verbose -nocffi
 
@@ -482,6 +552,12 @@ jobs:
           LIME_TEST_PYTHON: ${{ steps.tls-python.outputs.python-path }}
           # OpenAL's null output stands in for the sound card runners lack
           ALSOFT_DRIVERS: "null"
+          # The clipboard tests replace what the clipboard holds, so they only run here
+          LIME_TEST_CLIPBOARD: "1"
+          # The trash tests move files to the user's trash, so they only run here
+          LIME_TEST_TRASH: "1"
+          # NetworkInterfaceTest changes the network with sudo to see onChange, so it only runs here
+          LIME_TEST_NETWORK: "1"
         run: |
           python -m unittest discover -s fixtures
           lime test neko -release -verbose -nocolor
@@ -527,6 +603,8 @@ jobs:
           lime build SimpleVideo macos -arm64 -release -verbose -nocolor
 
   macos-intel:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
     runs-on: macos-15-intel
     steps:
 
@@ -571,18 +649,24 @@ jobs:
           done
 
       - name: Install Haxe dependencies
+        uses: ./.github/actions/install-haxelib-libraries
+        with:
+          libraries: |
+            native-desktop 1.2.1
+            native-ipc 1.0.0
+            StageWebView 1.1.0
+            wsproto 1.0.0
+            crossbyte 1.0.1
+            format 3.8.0
+            hxp 1.3.1
+            utest 1.13.2
+
+      - name: Install Haxe dependencies from git
+        shell: bash
         run: |
-          haxelib install native-desktop 1.1.0 --quiet
-          haxelib install native-ipc 1.0.0 --quiet
-          haxelib install StageWebView 1.0.1 --quiet
-          haxelib install wsproto 1.0.0 --quiet
-          haxelib install crossbyte 1.0.1 --quiet
           haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
           haxelib run libhxcpp setup
           haxe --cwd "$(haxelib libpath libhxcpp)/tools/hxcpp" compile.hxml
-          haxelib install format --quiet
-          haxelib install hxp --quiet
-          haxelib install utest --quiet
 
       # CrossByte, which serves lime test html5, needs Haxe 4.3 to build the tools
       - uses: ./.github/actions/rebuild-lime-tools
@@ -594,10 +678,12 @@ jobs:
           haxelib run lime setup -alias -y -nocffi
 
       - name: Rebuild Lime (macOS)
+        timeout-minutes: 90
         run: |
           lime rebuild macos -clean -release -x86_64 -nocolor -verbose -nocffi
 
       - name: Rebuild Lime (HashLink macOS)
+        timeout-minutes: 90
         run: |
           lime rebuild hl -clean -release -nocolor -verbose -nocffi
 
@@ -629,6 +715,12 @@ jobs:
           LIME_TEST_PYTHON: ${{ steps.tls-python.outputs.python-path }}
           # OpenAL's null output stands in for the sound card runners lack
           ALSOFT_DRIVERS: "null"
+          # The clipboard tests replace what the clipboard holds, so they only run here
+          LIME_TEST_CLIPBOARD: "1"
+          # The trash tests move files to the user's trash, so they only run here
+          LIME_TEST_TRASH: "1"
+          # NetworkInterfaceTest changes the network with sudo to see onChange, so it only runs here
+          LIME_TEST_NETWORK: "1"
         run: |
           python -m unittest discover -s fixtures
           lime test neko -release -verbose -nocolor
@@ -665,6 +757,8 @@ jobs:
           lime build SimpleVideo macos -x86_64 -release -verbose -nocolor
 
   windows:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
     runs-on: windows-latest
     steps:
 
@@ -686,19 +780,25 @@ jobs:
           echo "HAXEPATH=$Env:HAXE_STD_PATH\.." >> $Env:GITHUB_ENV
 
       - name: Install Haxe dependencies
+        uses: ./.github/actions/install-haxelib-libraries
+        with:
+          libraries: |
+            native-desktop 1.2.1
+            native-ipc 1.0.0
+            StageWebView 1.1.0
+            wsproto 1.0.0
+            crossbyte 1.0.1
+            lime-mesa 1.0.0
+            format 3.8.0
+            hxp 1.3.1
+            utest 1.13.2
+
+      - name: Install Haxe dependencies from git
+        shell: bash
         run: |
-          haxelib install native-desktop 1.1.0 --quiet
-          haxelib install native-ipc 1.0.0 --quiet
-          haxelib install StageWebView 1.0.1 --quiet
-          haxelib install wsproto 1.0.0 --quiet
-          haxelib install crossbyte 1.0.1 --quiet
-          haxelib install lime-mesa 1.0.0 --quiet
           haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
           haxelib run libhxcpp setup
           haxe --cwd "$(haxelib libpath libhxcpp)/tools/hxcpp" compile.hxml
-          haxelib install format --quiet
-          haxelib install hxp --quiet
-          haxelib install utest --quiet
 
       # CrossByte, which serves lime test html5, needs Haxe 4.3 to build the tools
       - uses: ./.github/actions/rebuild-lime-tools
@@ -711,6 +811,7 @@ jobs:
           haxelib run lime config AIR_SDK ${{ env.AIR_HOME }} -eval
 
       - name: Rebuild Lime (Windows)
+        timeout-minutes: 90
         run: |
           lime rebuild windows -32 -release -nocolor -verbose -nocffi
           lime rebuild windows -64 -release -nocolor -verbose -nocffi
@@ -758,6 +859,12 @@ jobs:
           LIME_TEST_PYTHON: ${{ steps.tls-python.outputs.python-path }}
           # OpenAL's null output stands in for the sound card runners lack
           ALSOFT_DRIVERS: "null"
+          # The clipboard tests replace what the clipboard holds, so they only run here
+          LIME_TEST_CLIPBOARD: "1"
+          # The trash tests move files to the user's trash, so they only run here
+          LIME_TEST_TRASH: "1"
+          # StorageVolumeTest mounts a folder on a free drive letter with subst, so it only runs here
+          LIME_TEST_VOLUMES: "1"
         run: |
           python -m unittest discover -s fixtures
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -847,6 +954,7 @@ jobs:
           lime build SimpleVideo windows -release -verbose -nocolor
 
       - name: Rebuild Lime (Windows, Mingw)
+        timeout-minutes: 90
         run: |
           rm ndll/Windows64/*
           lime rebuild windows -Dmingw -D MINGW_ROOT=C:\mingw64 -64 -clean -release -nocolor -verbose -nocffi
@@ -921,6 +1029,8 @@ jobs:
           if-no-files-found: error
 
   webassembly:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
     runs-on: ubuntu-22.04
     steps:
 
@@ -943,16 +1053,22 @@ jobs:
           echo "HAXEPATH=$HAXE_STD_PATH/.." >> $GITHUB_ENV
 
       - name: Install Haxe dependencies
+        uses: ./.github/actions/install-haxelib-libraries
+        with:
+          libraries: |
+            native-desktop 1.2.1
+            native-ipc 1.0.0
+            StageWebView 1.1.0
+            wsproto 1.0.0
+            format 3.8.0
+            hxp 1.3.1
+
+      - name: Install Haxe dependencies from git
+        shell: bash
         run: |
-          haxelib install native-desktop 1.1.0 --quiet
-          haxelib install native-ipc 1.0.0 --quiet
-          haxelib install StageWebView 1.0.1 --quiet
-          haxelib install wsproto 1.0.0 --quiet
           haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
           haxelib run libhxcpp setup
           haxe --cwd "$(haxelib libpath libhxcpp)/tools/hxcpp" compile.hxml
-          haxelib install format --quiet
-          haxelib install hxp --quiet
 
       - name: Prepare Lime
         run: |
@@ -965,6 +1081,7 @@ jobs:
           lime config -eval
 
       - name: Rebuild Lime (WebAssembly)
+        timeout-minutes: 90
         run: |
           lime rebuild webassembly -release -nocolor -verbose -nocffi -eval
 
@@ -996,6 +1113,8 @@ jobs:
           lime build SimpleVideo webassembly -release -verbose -nocolor -eval
 
   android:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
     runs-on: ubuntu-22.04
     strategy:
       matrix:
@@ -1028,16 +1147,22 @@ jobs:
           echo "HAXEPATH=$HAXE_STD_PATH/.." >> $GITHUB_ENV
 
       - name: Install Haxe dependencies
+        uses: ./.github/actions/install-haxelib-libraries
+        with:
+          libraries: |
+            native-desktop 1.2.1
+            native-ipc 1.0.0
+            StageWebView 1.1.0
+            wsproto 1.0.0
+            format 3.8.0
+            hxp 1.3.1
+
+      - name: Install Haxe dependencies from git
+        shell: bash
         run: |
-          haxelib install native-desktop 1.1.0 --quiet
-          haxelib install native-ipc 1.0.0 --quiet
-          haxelib install StageWebView 1.0.1 --quiet
-          haxelib install wsproto 1.0.0 --quiet
           haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
           haxelib run libhxcpp setup
           haxe --cwd "$(haxelib libpath libhxcpp)/tools/hxcpp" compile.hxml
-          haxelib install format --quiet
-          haxelib install hxp --quiet
 
       - name: Prepare Lime
         run: |
@@ -1055,6 +1180,7 @@ jobs:
           LIME_NDK_ROOT: ${{ matrix.ndk-version == 'stable' && '$ANDROID_NDK_ROOT' || steps.setup-ndk.outputs.ndk-path }}
 
       - name: Rebuild Lime (Android)
+        timeout-minutes: 90
         run: |
           lime rebuild android -release -nocolor -verbose -nocffi -eval
 
@@ -1080,6 +1206,23 @@ jobs:
           lime create HelloWorld -verbose -nocolor -eval
           lime build HelloWorld android -release -verbose -nocolor -eval
 
+      # 64-bit devices with 16 KB pages need every LOAD segment aligned to 16 KB
+      - name: Check 64-bit libraries are 16 KB aligned (Android)
+        run: |
+          ndk=${{ matrix.ndk-version == 'stable' && '$ANDROID_NDK_ROOT' || steps.setup-ndk.outputs.ndk-path }}
+          readelf="$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
+          files=$(ls ndll/Android/liblime-64.so ndll/Android/liblime-x86_64.so 2>/dev/null; find HelloWorld/Export/android/bin/app/src/main/jniLibs \( -path '*/arm64-v8a/*' -o -path '*/x86_64/*' \) -name '*.so')
+          [ -n "$files" ] || { echo "No 64-bit libraries found"; exit 1; }
+          failed=0
+          for file in $files; do
+            aligns=$("$readelf" -lW "$file" | awk '$1 == "LOAD" { print $NF }')
+            echo "$file: $aligns"
+            for align in $aligns; do
+              [ $((align)) -ge 16384 ] || failed=1
+            done
+          done
+          exit $failed
+
       - name: Build SimpleImage sample
         run: |
           lime create SimpleImage -verbose -nocolor -eval
@@ -1101,6 +1244,8 @@ jobs:
           lime build android -release -verbose -nocolor -eval
 
   ios:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
     runs-on: macos-15
     steps:
 
@@ -1117,16 +1262,22 @@ jobs:
           echo "HAXEPATH=$HAXE_STD_PATH/.." >> $GITHUB_ENV
 
       - name: Install Haxe dependencies
+        uses: ./.github/actions/install-haxelib-libraries
+        with:
+          libraries: |
+            native-desktop 1.2.1
+            native-ipc 1.0.0
+            StageWebView 1.1.0
+            wsproto 1.0.0
+            format 3.8.0
+            hxp 1.3.1
+
+      - name: Install Haxe dependencies from git
+        shell: bash
         run: |
-          haxelib install native-desktop 1.1.0 --quiet
-          haxelib install native-ipc 1.0.0 --quiet
-          haxelib install StageWebView 1.0.1 --quiet
-          haxelib install wsproto 1.0.0 --quiet
           haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
           haxelib run libhxcpp setup
           haxe --cwd "$(haxelib libpath libhxcpp)/tools/hxcpp" compile.hxml
-          haxelib install format --quiet
-          haxelib install hxp --quiet
 
       - name: Prepare Lime
         run: |
@@ -1134,6 +1285,7 @@ jobs:
           haxelib run lime setup -alias -y -nocffi -eval
 
       - name: Rebuild Lime (iOS)
+        timeout-minutes: 90
         run: |
           lime rebuild ios -clean -release -verbose -nocolor -eval
 
@@ -1191,19 +1343,25 @@ jobs:
           echo "HAXEPATH=$HAXE_STD_PATH/.." >> $GITHUB_ENV
 
       - name: Install Haxe dependencies
+        uses: ./.github/actions/install-haxelib-libraries
+        with:
+          libraries: |
+            native-desktop 1.2.1
+            native-ipc 1.0.0
+            StageWebView 1.1.0
+            wsproto 1.0.0
+            crossbyte 1.0.1
+            format 3.8.0
+            hxp 1.3.1
+            svg 1.2.0
+            openfl 9.5.2
+
+      - name: Install Haxe dependencies from git
+        shell: bash
         run: |
-          haxelib install native-desktop 1.1.0 --quiet
-          haxelib install native-ipc 1.0.0 --quiet
-          haxelib install StageWebView 1.0.1 --quiet
-          haxelib install wsproto 1.0.0 --quiet
-          haxelib install crossbyte 1.0.1 --quiet
           haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
           haxelib run libhxcpp setup
           haxe --cwd "$(haxelib libpath libhxcpp)/tools/hxcpp" compile.hxml
-          haxelib install format --quiet
-          haxelib install hxp --quiet
-          haxelib install svg --quiet
-          haxelib install openfl --quiet
 
       # CrossByte, which serves lime test html5, needs Haxe 4.3 to build the tools
       - uses: ./.github/actions/rebuild-lime-tools
@@ -1399,6 +1557,8 @@ jobs:
           fi
 
   docs:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
     runs-on: ubuntu-22.04
     steps:
 
@@ -1413,12 +1573,18 @@ jobs:
           echo "HAXEPATH=$HAXE_STD_PATH/.." >> $GITHUB_ENV
 
       - name: Install Haxe dependencies
+        uses: ./.github/actions/install-haxelib-libraries
+        with:
+          libraries: |
+            native-desktop 1.2.1
+            native-ipc 1.0.0
+            StageWebView 1.1.0
+            wsproto 1.0.0
+            dox 1.6.0
+
+      - name: Use this checkout as lime
+        shell: bash
         run: |
-          haxelib install native-desktop 1.1.0 --quiet
-          haxelib install native-ipc 1.0.0 --quiet
-          haxelib install StageWebView 1.0.1 --quiet
-          haxelib install wsproto 1.0.0 --quiet
-          haxelib install dox --quiet
           haxelib dev lime ${{ github.workspace }}
 
       - name: Build docs
@@ -1433,6 +1599,8 @@ jobs:
           if-no-files-found: error
 
   flash-samples:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
     runs-on: ubuntu-22.04
     steps:
 
@@ -1447,13 +1615,19 @@ jobs:
           echo "HAXEPATH=$HAXE_STD_PATH/.." >> $GITHUB_ENV
 
       - name: Install Haxe dependencies
+        uses: ./.github/actions/install-haxelib-libraries
+        with:
+          libraries: |
+            native-desktop 1.2.1
+            native-ipc 1.0.0
+            StageWebView 1.1.0
+            wsproto 1.0.0
+            format 3.8.0
+            hxp 1.3.1
+
+      - name: Install Haxe dependencies from git
+        shell: bash
         run: |
-          haxelib install native-desktop 1.1.0 --quiet
-          haxelib install native-ipc 1.0.0 --quiet
-          haxelib install StageWebView 1.0.1 --quiet
-          haxelib install wsproto 1.0.0 --quiet
-          haxelib install format --quiet
-          haxelib install hxp --quiet
           haxelib git lime-samples https://github.com/openfl/lime-samples --quiet
 
       - name: Prepare Lime
@@ -1482,6 +1656,8 @@ jobs:
           lime build SimpleVideo flash -release -verbose -nocolor -eval
 
   air-samples:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
     runs-on: windows-latest
     strategy:
       matrix:
@@ -1506,15 +1682,21 @@ jobs:
           echo "HAXEPATH=$Env:HAXE_STD_PATH\.." >> $Env:GITHUB_ENV
 
       - name: Install Haxe dependencies
+        uses: ./.github/actions/install-haxelib-libraries
+        with:
+          libraries: |
+            native-desktop 1.2.1
+            native-ipc 1.0.0
+            StageWebView 1.1.0
+            wsproto 1.0.0
+            format 3.8.0
+            hxp 1.3.1
+
+      - name: Install Haxe dependencies from git
+        shell: bash
         run: |
-          haxelib install native-desktop 1.1.0 --quiet
-          haxelib install native-ipc 1.0.0 --quiet
-          haxelib install StageWebView 1.0.1 --quiet
-          haxelib install wsproto 1.0.0 --quiet
           haxelib git libhxcpp https://github.com/openfl/libhxcpp --quiet
           haxelib run libhxcpp setup
-          haxelib install format --quiet
-          haxelib install hxp --quiet
           haxelib git lime-samples https://github.com/openfl/lime-samples --quiet
 
       - name: Prepare Lime
@@ -1564,12 +1746,24 @@ jobs:
         run: |
           echo "HAXEPATH=$HAXE_STD_PATH/.." >> $GITHUB_ENV
 
+      # Only for the action that installs the libraries
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: .github/actions/
+          sparse-checkout-cone-mode: false
+
       - name: Install Haxe dependencies
+        uses: ./.github/actions/install-haxelib-libraries
+        with:
+          libraries: |
+            native-desktop 1.2.1
+            native-ipc 1.0.0
+            StageWebView 1.1.0
+            wsproto 1.0.0
+
+      - name: Install Haxe dependencies from git
+        shell: bash
         run: |
-          haxelib install native-desktop 1.1.0 --quiet
-          haxelib install native-ipc 1.0.0 --quiet
-          haxelib install StageWebView 1.0.1 --quiet
-          haxelib install wsproto 1.0.0 --quiet
           haxelib git lime-samples https://github.com/openfl/lime-samples --quiet
 
       - uses: actions/download-artifact@v8
@@ -1623,12 +1817,24 @@ jobs:
         run: |
           echo "HAXEPATH=$HAXE_STD_PATH/.." >> $GITHUB_ENV
 
+      # Only for the action that installs the libraries
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: .github/actions/
+          sparse-checkout-cone-mode: false
+
       - name: Install Haxe dependencies
+        uses: ./.github/actions/install-haxelib-libraries
+        with:
+          libraries: |
+            native-desktop 1.2.1
+            native-ipc 1.0.0
+            StageWebView 1.1.0
+            wsproto 1.0.0
+
+      - name: Install Haxe dependencies from git
+        shell: bash
         run: |
-          haxelib install native-desktop 1.1.0 --quiet
-          haxelib install native-ipc 1.0.0 --quiet
-          haxelib install StageWebView 1.0.1 --quiet
-          haxelib install wsproto 1.0.0 --quiet
           haxelib git lime-samples https://github.com/openfl/lime-samples --quiet
 
       - uses: actions/download-artifact@v8
@@ -1680,12 +1886,18 @@ jobs:
           echo "HAXEPATH=$HAXE_STD_PATH/.." >> $GITHUB_ENV
 
       - name: Install Haxe dependencies
+        uses: ./.github/actions/install-haxelib-libraries
+        with:
+          libraries: |
+            native-desktop 1.2.1
+            native-ipc 1.0.0
+            StageWebView 1.1.0
+            wsproto 1.0.0
+            genes 0.4.14
+
+      - name: Install Haxe dependencies from git
+        shell: bash
         run: |
-          haxelib install native-desktop 1.1.0 --quiet
-          haxelib install native-ipc 1.0.0 --quiet
-          haxelib install StageWebView 1.0.1 --quiet
-          haxelib install wsproto 1.0.0 --quiet
-          haxelib install genes --quiet
           haxelib git lime-samples https://github.com/openfl/lime-samples --quiet
 
       - uses: actions/download-artifact@v8
@@ -1764,12 +1976,24 @@ jobs:
         run: |
           echo "HAXEPATH=$HAXE_STD_PATH/.." >> $GITHUB_ENV
 
+      # Only for the action that installs the libraries
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: .github/actions/
+          sparse-checkout-cone-mode: false
+
       - name: Install Haxe dependencies
+        uses: ./.github/actions/install-haxelib-libraries
+        with:
+          libraries: |
+            native-desktop 1.2.1
+            native-ipc 1.0.0
+            StageWebView 1.1.0
+            wsproto 1.0.0
+
+      - name: Install Haxe dependencies from git
+        shell: bash
         run: |
-          haxelib install native-desktop 1.1.0 --quiet
-          haxelib install native-ipc 1.0.0 --quiet
-          haxelib install StageWebView 1.0.1 --quiet
-          haxelib install wsproto 1.0.0 --quiet
           haxelib git lime-samples https://github.com/openfl/lime-samples --quiet
 
       - uses: actions/download-artifact@v8
@@ -1806,7 +2030,7 @@ jobs:
     runs-on: ubuntu-22.04
     needs: [package-haxelib, docs, android, flash-samples, air-samples, hashlink-samples, hashlinkc-samples, html5-samples, ios, linux, linux-arm64, vulkan-smoke, macos, macos-intel, neko-samples, webassembly, windows, windows-arm64]
     # Reports failures too, which is when it matters most
-    if: ${{ always() && github.repository == 'openfl/lime' && github.event_name != 'pull_request' }}
+    if: ${{ always() && needs.gate.outputs.run == 'true' && github.repository == 'openfl/lime' && github.event_name != 'pull_request' }}
     steps:
       - name: Notify Discord
         env:

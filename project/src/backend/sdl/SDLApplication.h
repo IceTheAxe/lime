@@ -40,6 +40,7 @@ namespace lime {
 			virtual void Init ();
 			virtual int Quit ();
 			virtual void SetMainLoop (int profile, double frameRate, int timePrecision, int busyWait, int uncapMode);
+			virtual void SetBackgroundFrameRate (double frameRate);
 			virtual void SetFrameRate (double frameRate);
 			virtual void SetIdleEvents (bool enabled);
 			virtual bool SetMenu (const unsigned char* data, int length);
@@ -53,6 +54,7 @@ namespace lime {
 #if defined(HX_WINDOWS) && !defined(HX_WINRT)
 			static void EnterNativeModalLoop ();
 			static void ExitNativeModalLoop ();
+			static void RunPendingModalFrame ();
 			void SetModalCallbacks (ValuePointer* update, ValuePointer* render, ValuePointer* window, ValuePointer* rethrow);
 			void DeferModalException ();
 #endif
@@ -61,7 +63,9 @@ namespace lime {
 
 			void AdvanceNextUpdate ();
 			void ApplyMainLoopSettings ();
+			void UpdateWindowsHidden (bool apply);
 			void CalibrateSleepGuard (bool force = false);
+			bool CalibrateSleepGuardBefore (double remaining);
 			void DispatchFrame (double now, bool renderFrame = true);
 			void DispatchIdle (double remaining);
 			double GetCurrentTimeMs () const;
@@ -185,7 +189,11 @@ namespace lime {
 			mutable Uint32 clockLastTicks;
 			mutable Uint64 clockElapsedTicks;
 			bool realVSyncActive;
+			// Every window is minimised or hidden
+			bool windowsHidden;
 			int requestedBusyWaitMode;
+			// The most frames a second while every window is minimised or hidden, or 0 for no limit
+			double requestedBackgroundFrameRate;
 			double requestedFrameRate;
 			int requestedProfile;
 			int requestedTimePrecisionMode;
@@ -213,6 +221,8 @@ namespace lime {
 			bool modalWatchInstalled;
 			ValuePointer* modalCallbacks[4];
 			bool modalExceptionPending;
+			SDL_Event modalFrameEvent;
+			bool modalFramePending;
 			std::exception_ptr modalNativeException;
 			Uint32 mainThreadID;
 			std::map<Uint32, std::pair<int, int>> dispatchedWindowSizes;

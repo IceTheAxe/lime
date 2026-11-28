@@ -1,11 +1,11 @@
 package utils;
 
 import haxe.Http;
-import haxe.Json;
 import haxe.io.Eof;
 import haxe.zip.Reader;
 import hxp.*;
 import lime.tools.CLIHelper;
+import lime.tools.CommandHelper;
 import lime.tools.ConfigHelper;
 import lime.tools.Platform;
 import lime.tools.HXProject;
@@ -720,16 +720,7 @@ class PlatformSetup
 			&& !isInsidePath(hxcppPath, Path.combine(repository, "hxcpp"))
 			&& !isInsidePath(hxcppPath, Path.combine(repository, "libhxcpp")))
 		{
-			var name = null;
-
-			try
-			{
-				var json = Json.parse(File.getContent(Path.combine(hxcppPath, "haxelib.json")));
-				name = json.name;
-			}
-			catch (e:Dynamic) {}
-
-			if (name == "libhxcpp")
+			if (BuildEnvironment.getHaxelibName(hxcppPath) == "libhxcpp")
 			{
 				Log.info("hxcpp already points at the libhxcpp in " + hxcppPath + ", so it is left as it is.");
 			}
@@ -911,7 +902,7 @@ class PlatformSetup
 
 		if (answer == YES || answer == ALWAYS)
 		{
-			System.openURL(appleXcodeURL);
+			CommandHelper.openURL(appleXcodeURL);
 		}
 	}
 
@@ -1172,7 +1163,7 @@ class PlatformSetup
 
 		if (answer == YES || answer == ALWAYS)
 		{
-			System.openURL(appleXcodeURL);
+			CommandHelper.openURL(appleXcodeURL);
 		}
 	}
 
@@ -1335,7 +1326,7 @@ class PlatformSetup
 
 		if (answer == YES || answer == ALWAYS)
 		{
-			System.openURL(visualStudioURL);
+			CommandHelper.openURL(visualStudioURL);
 		}
 	}
 

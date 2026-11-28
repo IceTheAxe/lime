@@ -56,6 +56,9 @@ class NativeHTTPRequest
 	private var contentType:String;
 	private var curl:CURL;
 	private var followManually:Bool;
+	// The transfer's bytes when the progress timer last saw them change, and when that was
+	private var idleBytes:Float;
+	private var idleSince:Float;
 	private var parent:_IHTTPRequest;
 	private var promise:Promise<Bytes>;
 	private var redirects:Int;
@@ -65,6 +68,8 @@ class NativeHTTPRequest
 	private var writeBytesLoaded:Int;
 	private var writeBytesTotal:Int;
 	private var timeout:Timer;
+	// Bytes received and sent so far, as the transfer thread reports them
+	private var transferredBytes:Float;
 
 	public function new()
 	{
@@ -237,13 +242,17 @@ class NativeHTTPRequest
 				}
 
 			case _:
-				curl.setOption(CUSTOMREQUEST, Std.string(method));
-
 				if (data != null)
 				{
+					// curl only sends a body for a request it posts or uploads, so the
+					// data goes as a POST's would, under the request's own method
+					curl.setOption(POST, true);
 					curl.setOption(INFILE, data);
 					curl.setOption(INFILESIZE, data.length);
+					curl.setOption(POSTFIELDSIZE, data.length);
 				}
+
+				curl.setOption(CUSTOMREQUEST, Std.string(method));
 		}
 
 		// A request whose method a redirect can change follows redirects itself, as curl
@@ -299,11 +308,8 @@ class NativeHTTPRequest
 		curl.setOption(SSL_VERIFYHOST, parent.verifyCertificates ? 2 : 0);
 		curl.setOption(USERAGENT, parent.userAgent == null ? "libcurl-agent/1.0" : parent.userAgent);
 
-		// The whole request, as XMLHttpRequest.timeout is on HTML5
-		if (parent.timeout > 0)
-		{
-			curl.setOption(TIMEOUT_MS, parent.timeout);
-		}
+		// The timeout is how long the request may go without data, which the progress
+		// timer measures, not a limit on the whole transfer as curl's TIMEOUT_MS is
 
 		curl.setOption(NOSIGNAL, true);
 
@@ -361,6 +367,10 @@ class NativeHTTPRequest
 
 		if (activeInstances.indexOf(this) == -1) activeInstances.push(this);
 		multiInstances.set(curl, this);
+
+		transferredBytes = 0;
+		idleBytes = 0;
+		idleSince = Timer.stamp();
 
 		#if (cpp || neko || hl)
 		if (multiAddHandle == null) multiAddHandle = new Deque<CURL>();
@@ -524,6 +534,22 @@ class NativeHTTPRequest
 		return output.getBytes();
 	}
 
+	private function timeOut():Void
+	{
+		var promise = this.promise;
+
+		// Stops the transfer and leaves nothing more to report
+		cancel();
+
+		// No response finished, as when curl itself times out
+		parent.responseStatus = 0;
+
+		if (promise != null)
+		{
+			promise.error(new _HTTPRequestErrorResponse(CURL.strerror(CURLCode.OPERATION_TIMEDOUT), null));
+		}
+	}
+
 	private function buildBuffer()
 	{
 		bytes = buffer.getBytes();
@@ -572,6 +598,8 @@ class NativeHTTPRequest
 	{
 		if (curl != this.curl) return 0;
 
+		transferredBytes = dlnow + upnow;
+
 		if (upnow > writeBytesLoaded || dlnow > writeBytesLoaded || uptotal > writeBytesTotal || dltotal > writeBytesTotal)
 		{
 			if (upnow > writeBytesLoaded) writeBytesLoaded = Std.int(upnow);
@@ -606,6 +634,36 @@ class NativeHTTPRequest
 		if (index > -1)
 		{
 			path = path.substring(0, index);
+		}
+
+		if (StringTools.startsWith(path.toLowerCase(), "file:"))
+		{
+			// a file URL, as AIR's File.url gives: file:///home/user/a%20b.txt, file:///C:/dir/file.txt.
+			// RFC 8089 also allows file:/home/user/a.txt and file://localhost/home/user/a.txt
+			var rest = path.substr("file:".length);
+
+			if (rest.substr(0, "//localhost/".length).toLowerCase() == "//localhost/")
+			{
+				rest = rest.substr("//localhost".length);
+			}
+			else if (StringTools.startsWith(rest, "///"))
+			{
+				rest = rest.substr("//".length);
+			}
+
+			// a file on another host, file://host/path, is left as it is, and fails to load
+			if (StringTools.startsWith(rest, "/") && !StringTools.startsWith(rest, "//"))
+			{
+				// urlDecode reads a plus as a space, as in a query, but in a path it is a plus
+				path = StringTools.urlDecode(StringTools.replace(rest, "+", "%2B"));
+
+				#if windows
+				if (~/^\/[A-Za-z]:/.match(path))
+				{
+					path = path.substr(1);
+				}
+				#end
+			}
 		}
 
 		#if (sys && !windows)
@@ -848,8 +906,25 @@ class NativeHTTPRequest
 
 	private static function multiProgressTimer_onRun():Void
 	{
-		for (instance in activeInstances)
+		var now = Timer.stamp();
+
+		// A request that times out leaves the list
+		for (instance in activeInstances.copy())
 		{
+			// The timeout counts from the last data either way, as OpenFL's
+			// URLRequest.idleTimeout, which it sets it from, does: a download or upload
+			// that is still under way carries on past it
+			if (instance.transferredBytes != instance.idleBytes)
+			{
+				instance.idleBytes = instance.transferredBytes;
+				instance.idleSince = now;
+			}
+			else if (instance.parent.timeout > 0 && (now - instance.idleSince) * 1000 >= instance.parent.timeout)
+			{
+				instance.timeOut();
+				continue;
+			}
+
 			if (instance.bytesLoaded != instance.writeBytesLoaded || instance.bytesTotal != instance.writeBytesTotal)
 			{
 				instance.bytesLoaded = instance.writeBytesLoaded;

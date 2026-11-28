@@ -21,6 +21,7 @@ import lime.tools.Icon;
 import lime.tools.IconHelper;
 import lime.tools.JavaHelper;
 import lime.tools.ModuleHelper;
+import lime.tools.NativeSourcesHelper;
 import lime.tools.NekoHelper;
 import lime.tools.NodeJSHelper;
 import lime.tools.Orientation;
@@ -256,7 +257,7 @@ class WindowsPlatform extends PlatformTarget
 
 		var icons = project.icons;
 
-		if (icons.length == 0)
+		if (!IconHelper.hasIcons(icons))
 		{
 			icons = [new Icon(System.findTemplate(project.templatePaths, "default/icon.svg"))];
 		}
@@ -1060,6 +1061,7 @@ class WindowsPlatform extends PlatformTarget
 				{
 					context.ndlls[i].path = NDLL.getLibraryPath(ndll, (targetType == "winrt" ? "WinRT" : "Windows") + (is64 ? "64" : ""), "lib", suffix,
 						project.debug);
+					NativeSourcesHelper.checkLibrary(StringTools.replace(context.ndlls[i].path, "${LIBEXT}", ".lib"));
 				}
 			}
 		}
@@ -1085,7 +1087,7 @@ class WindowsPlatform extends PlatformTarget
 		else if (targetType == "cpp")
 		{
 			var windowsIcons = project.icons;
-			if (windowsIcons.length == 0)
+			if (!IconHelper.hasIcons(windowsIcons))
 			{
 				windowsIcons = [new Icon(System.findTemplate(project.templatePaths, "default/icon.svg"))];
 			}
@@ -1118,7 +1120,7 @@ class WindowsPlatform extends PlatformTarget
 
 		}*/
 
-		copyProjectAssets(applicationDirectory);
+		copyProjectAssets(applicationDirectory, null, context);
 	}
 
 	private function updateUWP():Void
@@ -1211,7 +1213,7 @@ class WindowsPlatform extends PlatformTarget
 
 		var icons = project.icons;
 
-		if (icons.length == 0)
+		if (!IconHelper.hasIcons(icons))
 		{
 			icons = [new Icon(System.findTemplate(project.templatePaths, "default/icon.svg"))];
 		}
